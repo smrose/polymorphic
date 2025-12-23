@@ -1,0 +1,99 @@
+#!/usr/bin/perl
+#
+# NAME
+#
+#  pps-patterns-lv-ps.pl
+#
+# CONCEPT
+#
+#  Add Liberating Voices patterns, reading from 'ps' and writing to 'pps'.
+#
+# NOTES
+#
+#  ps.pattern is a table with one row per pattern. pps.pattern
+#  contains only the pattern id and pattern_template id, and all the
+#  pattern features live in the pattern_feature table while all the
+#  pattern feature values are in tables named for the feature.
+#
+#  CREATE TABLE IF NOT EXISTS pattern (
+#   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
+#   pt_id INT UNSIGNED NOT NULL,
+#   CONSTRAINT FOREIGN KEY (ptid) REFERENCES pattern_template(id)
+#  );
+#
+# $Id: pps-patterns-lv-ps.pl,v 1.2 2025/12/16 00:16:51 rose Exp $
+
+use strict;
+use DBI;
+use Readonly;
+use Try::Tiny;
+
+our($dbh, $sth, $patterns, $pattern_template, $pattern_features, @pf);
+
+
+# pinsert()
+#
+#  Insert one pattern into pps.
+#
+#  pattern_features have been established, and tables for all the columns have been
+#  created.
+
+sub pinsert {
+    my $pattern = $_[0];
+    
+    print "$pattern->{id}\t$pattern->{title}\n";
+
+    # create the pattern record
+    
+    $dbh->do("INSERT INTO pattern (ptid) VALUES ($pattern_template)")
+	or die 'insert pattern';
+    my $pid = $dbh->{mysql_insertid};
+
+    # create the features
+    
+    for my $pattern_feature (values %$pattern_features) {
+	my $pfname = $pattern_feature->{name};
+	next
+	    unless( defined $pattern->{$pfname});
+	my $sth =
+	    $dbh->prepare("INSERT INTO pf_$pfname (pid, pfid, value) VALUES (?, ?, ?)");
+	try {
+	    $sth->execute($pid, $pattern_feature->{id}, $pattern->{$pfname})
+	} catch {
+	    print "INSERT failed for $pfname";
+	}
+    }
+
+} # end pinsert()
+
+# Fetch the patterns from ps.
+
+$dbh = DBI->connect('dbi:mysql:database=ps', 'root', '<password>')
+    or die 'connect';
+$patterns = $dbh->selectall_hashref('SELECT p.* FROM pattern p
+  JOIN planguage pl ON p.plid = pl.id
+ WHERE pl.title = "Liberating Voices"', 'id')
+    or die 'selectall ps.pattern';
+$dbh->disconnect;
+
+# Get the pattern_features from pps.
+
+$dbh = DBI->connect('dbi:mysql:database=pps', 'pps', '<password>')
+    or die 'connect';
+
+# Get the pattern_template id.
+
+$pattern_template = $dbh->selectcol_arrayref('SELECT id FROM pattern_template');
+$pattern_template = $pattern_template->[0];
+
+$pattern_features = $dbh->selectall_hashref('SELECT * FROM pattern_feature', 'id')
+    or die 'selectall pps.pattern_feature';
+
+my $sth = $dbh->prepare('INSERT INTO pt_feature (ptid, fid) VALUES (?, ?)');
+for my $pattern_feature (values %$pattern_features) {
+    $sth->execute($pattern_template, $pattern_feature->{id});
+}
+
+for my $pattern (sort {$a->{id} <=> $b->{id}} values %$patterns) {
+    pinsert($pattern);
+}
