@@ -1,0 +1,146 @@
+body {
+    font-family: sans-serif;
+    border: 0;
+    margin: 0;
+    margin-bottom: 40px;
+}
+header {
+    background-color: black;
+    color: white;
+    text-align: center;
+    width: 100%;
+    padding: 5px;
+    margin: 0;
+    border: 0;
+}
+#reiner {
+    margin: 1em;
+}
+#ass {
+    font-family: monospace;
+    font-weight: bold;
+    font-size: 8pt;
+}
+#ass:hover {
+    bacground-color: #fcc;
+}
+#posterior {
+    display: grid;
+    grid-template-columns: auto auto;
+    border: 1px solid black;
+    width: max-content;
+    font-size: 10pt;
+    display: none;
+    margin: .5em;
+}
+#posterior div {
+    padding: .1em;
+    border: 1px dotted grey;    
+}
+.featureform {
+    display: grid;
+    grid-template-columns: auto auto;
+    border: 1px solid black;
+    width: max-content;
+    padding: .4em;
+    background-color: #ffd;
+    margin-left: 1em;
+}
+#fform {
+    display: grid;
+    border: 1px solid black;
+    grid-template-columns: repeat(4, auto);
+    width: max-content;
+    background-color: #ffd;
+    margin-left: 1em;
+}
+#faform {
+    display: grid;
+    border: 1px solid black;
+    grid-template-columns: auto;
+    width: max-content;
+    background-color: #ffd;
+    margin-left: 1em;
+}
+.fh {
+    color: #ccc;
+    background-color: black;
+    text-align: center;
+    font-weight: bold;
+}
+#faform div, #fform div {
+    padding: .2em;
+}
+.featureform div {
+    padding: .1em;
+}
+.fname {
+    text-align: right;
+    font-weight: bold;
+}
+.fsub {
+    text-align: center;
+    font-weight: bold;
+    grid-column: span 2;
+}
+.fsub3 {
+    text-align: center;
+    font-weight: bold;
+    grid-column: span 3;
+}
+.fsub4 {
+    text-align: center;
+    font-weight: bold;
+    grid-column: span 4;
+}
+#seltemplate {
+    display: grid;
+    grid-template-columns: auto;
+    width: max-content;
+    background-color: #ffd;
+    border: 1px solid #322;
+    margin-left: 2em;
+    margin-top: 1em;
+    padding: .4em;
+}
+#seltemplate div {
+    padding: .2em;
+}
+#foot {
+    border-top: 2px solid #333;
+    margin-top: 1em;
+    text-align: right;
+    font-style: oblique;
+    font-weight: bold;
+    text-shadow: 1px 1px #999;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+}
+#foot a {
+    text-decoration: none;
+    color: #666;
+}
+.afeat, input[type=submit] {
+    font-weight: bold;
+    background-color: #330;
+    color: #ffe;
+    padding: 6px;
+    margin: 5px;
+    border: none;
+    cursor: pointer;
+}
+input[type=submit]:disabled {
+    background-color: #663;
+    color: #cc9;
+    cursor: auto;
+}
+.alert {
+    color: #660;
+    font-weight: bold;
+}
+.error {
+    color: #600;
+    font-weight: bold;
+}
