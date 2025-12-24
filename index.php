@@ -190,6 +190,9 @@ function SelectFeature() {
   $menu .= '</select>
 ';
   print "<h2>Edit a Feature</h2>
+
+<p class=\"alert\">Select the feature you wish to edit.</p>
+
 <form method=\"POST\" action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featureform\">
 <input type=\"hidden\" name=\"feature\" value=\"edit\">
 <div>$menu<div>
@@ -284,7 +287,8 @@ $context
  */
 
 function FeatureForm($id = null) {
-
+  $disabled = ''; // used to disable the type menu
+  
   if(isset($id)) {
 
     # Editing an existing feature.
@@ -296,13 +300,17 @@ function FeatureForm($id = null) {
     $fnotes = $feature['notes'];
     $fid = "<input type=\"hidden\" name=\"feature_id\" value=\"{$feature['id']}\">\n";
     print "<h2>Edit Feature</h2>\n";
-    $another = '<input type="submit" name="submit" value="Delete">
+    $another = '<input id=\"faformsubmit3\" type="submit" name="submit" value="Delete">
 ';
     if($stats = FeatureStats($id)) {
-      $instr = "<p>This feature is used by the following templates:\n";
+      $valueCount = 0;
+      $instr = "<p class=\"alert\">This feature is used by the following templates (number of patterns with feature values):\n";
       foreach($stats as $stat) {
-        $instr .= "<br><span style=\"margin-left: 2em\"><i>{$stat['name']}</i> - {$stat['count']} values</span>\n";
+        $instr .= "<br><span style=\"margin-left: 2em\"><i>{$stat['name']}</i> ({$stat['count']} patterns</span>)\n";
+	$valueCount += $stat['count'];
       }
+      if($valueCount)
+        $disabled = ' disabled="disabled"';
     } else {
       $instr = "<p class=\"alert\">This feature isn't used in any templates yet.</p>\n";
     }
@@ -313,11 +321,11 @@ function FeatureForm($id = null) {
 
     $fname = $fnotes = $fid = '';
     print "<h2>Add a Feature</h2>\n";
-    $another = '<input type="submit" name="submit" value="' . ANOTHER . "\">\n";
-    $instr = "<p>Enter a name, data type, and optional notes for this new feature.</p>\n";
+    $another = '<input type="submit" id="faformsubmit2" name="submit" value="' . ANOTHER . "\">\n";
+    $instr = "<p class=\"alert\">Enter a name, data type, and optional notes for this new feature.</p>\n";
   }
   
-  $typemenu = "<select name=\"type\">
+  $typemenu = "<select name=\"type\" id=\"faformtype\"$disabled>
  <option value=\"0\">Select a type</option>
 ";
   foreach(['integer', 'tinytext', 'text', 'longtext'] as $type) {
@@ -332,7 +340,7 @@ function FeatureForm($id = null) {
  <input type=\"hidden\" name=\"feature\" value=\"specify\">
 $fid
  <div class=\"fname\">Feature name:</div>
- <div><input type=\"text\" name=\"name\"$fname></div>
+ <div><input type=\"text\" name=\"name\" id=\"faformname\"$fname></div>
  
  <div class=\"fname\">Type:</div>
  <div>$typemenu</div>
@@ -341,7 +349,7 @@ $fid
  <div><textarea name=\"notes\" rows=\"3\" cols=\"80\">$fnotes</textarea></div>
 
  <div class=\"fsub\">
-  <input type=\"submit\" name=\"submit\" value=\"Accept\">
+  <input type=\"submit\" name=\"submit\" id=\"faformsubmit\" value=\"Accept\">
   $another
   <input type=\"submit\" name=\"submit\" value=\"Cancel\">
  </div>
@@ -707,7 +715,8 @@ function AbsorbPatternUpdate() {
 
 /* AbsorbNewPattern()
  *
- *  Implement pattern insert.
+ *  Implement pattern insert, returning an array will 'features', 'notes', and
+ *  'id' columns.
  */
 
 function AbsorbNewPattern() {
@@ -727,10 +736,12 @@ function AbsorbNewPattern() {
   $notes = $_REQUEST['notes'];
   $template_id = $_REQUEST['template_id'];
   $pid = InsertPattern($notes, $template_id);
-  foreach($features as $fname => $fvalue) {
+  foreach($features as $fname => $fvalue)
     InsertFeatureValue($pid, $fname, $fvalue);
-  }
-  return $pid;
+  $pattern['features'] = $features;
+  $pattern['id'] = $pid;
+  $pattern['notes'] = $notes;
+  return $pattern;
   
 } /* end AbsorbNewPattern() */
 
@@ -799,6 +810,9 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
       $SuppressMain = true;
     }
   } elseif($action == 'add') {
+
+    # adding a feature
+
     $template_id = (isset($_REQUEST['template_id']))
       ? $_REQUEST['template_id'] : null;
     AddPattern($template_id);
@@ -809,8 +823,8 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
     else
       Alert('No update.');
   } elseif($action == 'absorb_add') {
-    $id = AbsorbNewPattern();
-    Alert("Created new pattern with id $id");
+    $pattern = AbsorbNewPattern();
+    Alert("Created new pattern with title <em>{$pattern['features']['title']}</em>, id {$pattern['id']}");
   }
 
 } elseif(isset($_REQUEST['feature'])) {

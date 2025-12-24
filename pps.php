@@ -971,8 +971,10 @@ function FeatureStats($feature_id) {
     exit();
   }
   $templates = [];
-  while($template = $sth->fetch(PDO::FETCH_ASSOC))
+  while($template = $sth->fetch(PDO::FETCH_ASSOC)) {
     $templates[$template['id']] = $template;
+    $templates[$template['id']]['count'] = 0;
+  }
 
   # If this feature isn't used in any templates there is no point
   # computing the per-template counts.
@@ -999,7 +1001,7 @@ function FeatureStats($feature_id) {
     exit();
   }
   while($template = $sth->fetch(PDO::FETCH_ASSOC))
-    $templates[$template['id']]['count'] = $template['count'];    
+    $templates[$template['id']]['count'] = $template['count'];
 
   return $templates;
   
