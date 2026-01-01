@@ -19,6 +19,8 @@
  *  TemplateForm        present a form for adding or editing a template
  *  SelectPattern       select a pattern for editing
  *  ManageFeatures      manage features associated with a template
+ *  AddFeature          add the selected feature to the selected template
+ *  RemoveFeatures      remove 1 or more features from a template
  *  AbsorbPatternUpdate absorb pattern update
  *  AbsorbNewPattern    absorb a new pattern
  *
@@ -35,7 +37,7 @@
  *   CREATE TABLE `pattern_feature` (
  *    id int unsigned NOT NULL AUTO_INCREMENT,
  *    name varchar(255) NOT NULL,
- *    type enum('integer','tinytext','text','longtext') NOT NULL,
+ *    type enum('string', 'text', 'image', 'integer'),
  *    notes varchar(255),
  *    PRIMARY KEY (id),
  *    UNIQUE KEY `name` (`name`,`type`)
@@ -50,7 +52,8 @@
  *   );
  *
  *  Each feature has an associated table that stores values. For example,
- *  a "title" feature, which has type "tinytext":
+ *  a "title" feature, which has type "varchar(255)", which the user sees
+ *  as "string."
  *
  *   CREATE TABLE pf_title (
  *    id int unsigned NOT NULL AUTO_INCREMENT,
@@ -83,6 +86,7 @@
  *    fid int(10) unsigned NOT NULL,
  *    KEY ptid (ptid),
  *    KEY fid (fid),
+ *    CONSTRAINNT UNIQUE(ptid, fid),
  *    CONSTRAINT FOREIGN KEY (ptid) REFERENCES pattern_template (id),
  *    CONSTRAINT FOREIGN KEY (fid) REFERENCES pattern_feature (id)
  *   );
@@ -114,16 +118,16 @@ const ANOTHER = 'Accept and enter another';
  *
  *  The $context argument, an array, tells us how to label the page
  *  (label), what hidden field to include (context = action), what
- *  submit buttons to include (submit[]), how to label the 0th menu
- *  item (zlabel, optional), and what leading instructions to include
- *  (notes, optional).
+ *  submit buttons to include (submit[], with 'label' and, optionally,
+ *  'id' fields), how to label the 0th menu item (zlabel, optional),
+ *  and what leading instructions to include (notes, optional).
  */
 
 function SelectTemplate($context) {
   $templates = GetTemplates();
   $zlabel = (isset($context['zlabel']))
     ? $context['zlabel'] : 'Select a template';
-  $seltemplate = "<select name=\"template_id\">
+  $seltemplate = "<select name=\"template_id\" id=\"template_id\">
  <option value=\"0\">$zlabel</option>
 ";
   
@@ -152,15 +156,19 @@ function SelectTemplate($context) {
   $seltemplate .= "</select>\n";
 
   $submit = '';  
-  foreach($context['submit'] as $label) {
-    $submit .= "<input type=\"submit\" name=\"submit\" value=\"$label\">\n";
+  foreach($context['submit'] as $sub) {
+    if(array_key_exists('id', $sub))
+      $id = " id=\"{$sub['id']}\"";
+    else
+      $id = '';
+    $submit .= "<input type=\"submit\" name=\"submit\" value=\"{$sub['label']}\"$id>\n";
   }
   $submit .= "<input type=\"submit\" name=\"submit\" value=\"Cancel\">\n";
 
   if(isset($context['notes']))
     print $context['notes'];
 
-  print "<form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\">
+  print "<form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\" id=\"selecttemplate\">
 <input type=\"hidden\" name=\"{$context['context']}\" value=\"{$context['action']}\">
 
 <div class=\"fname\">Select a template:</div>
@@ -229,7 +237,9 @@ function PatternForm($action, $id) {
     $action = 'absorb_add';    
     $context = "<input type=\"hidden\" name=\"template_id\" value=\"$id\">\n";
     $nvalue = '';
-    $note = "<p class=\"alert\">Adding a pattern with template
+    $note = "<h2>Add a Pattern</h2>
+
+<p class=\"alert\">Adding a pattern with template
 <code>{$template['name']}</code></p>";
   }
   print "<h2>$ptitle</h2>
@@ -307,7 +317,7 @@ function FeatureForm($id = null) {
       $instr = "<p class=\"alert\">This feature is used by the following templates (number of patterns with feature values):\n";
       foreach($stats as $stat) {
         $instr .= "<br><span style=\"margin-left: 2em\"><i>{$stat['name']}</i> ({$stat['count']} patterns</span>)\n";
-	$valueCount += $stat['count'];
+        $valueCount += $stat['count'];
       }
       if($valueCount)
         $disabled = ' disabled="disabled"';
@@ -320,7 +330,17 @@ function FeatureForm($id = null) {
     # Defining a new feature.
 
     $fname = $fnotes = $fid = '';
-    print "<h2>Add a Feature</h2>\n";
+    print "<h2>Add a Feature</h2>
+
+<p class=\"instr\">Select from these types:
+ <ul>
+  <li><code>string</code>: a character string of 255 characters or fewer</li>
+  <li><code>text</code>: up to sixteen million characters</li>
+  <li><code>integer</code>: a integer value</li>
+  <li><code>image</code>: a graphic image, up to sixteen million bytes</li>
+ </ul>
+</p>
+";
     $another = '<input type="submit" id="faformsubmit2" name="submit" value="' . ANOTHER . "\">\n";
     $instr = "<p class=\"alert\">Enter a name, data type, and optional notes for this new feature.</p>\n";
   }
@@ -328,10 +348,10 @@ function FeatureForm($id = null) {
   $typemenu = "<select name=\"type\" id=\"faformtype\"$disabled>
  <option value=\"0\">Select a type</option>
 ";
-  foreach(['integer', 'tinytext', 'text', 'longtext'] as $type) {
-    $selected = (isset($feature) && $feature['type'] == $type)
+  foreach(TYPE as $alias => $type) {
+    $selected = (isset($feature) && $feature['type'] == $alias)
       ? ' selected="selected"' : ''; 
-    $typemenu .= " <option value=\"$type\"$selected>$type</option>\n";
+    $typemenu .= " <option value=\"$alias\"$selected>$alias</option>\n";
   }
   $typemenu .= "</select>\n";
   
@@ -398,7 +418,12 @@ function AddPattern($template_id = null) {
       'label' => 'Select Template',
       'context' => 'pattern',
       'action' => 'add',
-      'submit' => ['Select'],
+      'submit' => [
+        [
+	  'id' => 'tsel',
+          'label' => 'Select'
+	]
+      ],
       'notes' => "<p class=\"alert\">Select the template that this pattern will use.
 Templates with no associated features are disabled.</p>\n"
     ]);
@@ -514,7 +539,11 @@ template. Filter the pattern selection menu to those of a particular template, o
 ',
       'context' => 'pattern',
       'action' => 'edit',
-      'submit' => ['Select']
+      'submit' => [
+        [
+	  'label' => 'Select'
+	]
+      ]
     ]);
   }
   
@@ -642,7 +671,7 @@ discarded</b>.</p>
  */
 
 function AddFeature($template_id, $feature_id) {
-  InsertTemplateFeature($template_id, $feature_id);
+  return InsertTemplateFeature($template_id, $feature_id);
   
 } /* end AddFeature() */
 
@@ -653,8 +682,12 @@ function AddFeature($template_id, $feature_id) {
  */
 
 function RemoveFeatures($template_id, $features) {
-  foreach($features as $feature)
+  $count = 0;
+  foreach($features as $feature) {
     DeleteTemplateFeature($template_id, $feature);
+    $count++;
+  }
+  Alert("Removed $count features from template");
 
 } /* end RemoveFeatures() */
 
@@ -715,8 +748,7 @@ function AbsorbPatternUpdate() {
 
 /* AbsorbNewPattern()
  *
- *  Implement pattern insert, returning an array will 'features', 'notes', and
- *  'id' columns.
+ *  Implement pattern insert, returning a pattern array with 'features'.
  */
 
 function AbsorbNewPattern() {
@@ -735,12 +767,10 @@ function AbsorbNewPattern() {
   }
   $notes = $_REQUEST['notes'];
   $template_id = $_REQUEST['template_id'];
-  $pid = InsertPattern($notes, $template_id);
+  $pattern = InsertPattern($notes, $template_id);
   foreach($features as $fname => $fvalue)
-    InsertFeatureValue($pid, $fname, $fvalue);
+    InsertFeatureValue($pattern['id'], $fname, $fvalue);
   $pattern['features'] = $features;
-  $pattern['id'] = $pid;
-  $pattern['notes'] = $notes;
   return $pattern;
   
 } /* end AbsorbNewPattern() */
@@ -860,9 +890,15 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
     
   } elseif($_REQUEST['feature'] == 'specify') {
 
+    if(array_key_exists($_REQUEST['type'], TYPE))
+      $type = TYPE[$_REQUEST['type']];
+    else
+      Error("Type <code>{$_REQUEST['type']}</code> is unknown");
+
     $value = [
       'name' => $_REQUEST['name'],
-      'type' => $_REQUEST['type'],
+      'type' => $type,
+      'alias' => $_REQUEST['type'],
       'notes' => $_REQUEST['notes']
     ];
 
@@ -884,8 +920,8 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
     
       # Insert a pattern_feature and create a table for values.
 
-      $fid = InsertFeature($value);
-      Alert("Feature inserted, id $fid.");
+      $feature = InsertFeature($value);
+      Alert("Feature <i>{$feature['name']}</i> inserted, type <code>{$feature['type']}</code>, id <code>{$feature['id']}</code>.");
       if($_REQUEST['submit'] == ANOTHER) {
         FeatureForm();
         $SuppressMain = true;
@@ -905,13 +941,14 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
         
         if($_REQUEST['submit'] == 'Edit metadata') {
           TemplateForm($template_id);
-	  $SuppressMain = 1;
+          $SuppressMain = 1;
         } elseif(isset($_REQUEST['action']) &&
                  $_REQUEST['action'] == 'addfeature') {
 
           # we are adding a feature to this template
 
-          AddFeature($template_id, $_REQUEST['feature_id']);
+          $f = AddFeature($template_id, $_REQUEST['feature_id']);
+          Alert("Added feature <i>{$f['fname']}</i> to template <i>{$f['tname']}</i>");
           if($_REQUEST['submit'] == ANOTHER) {
             ManageFeatures($template_id);
             $SuppressMain = true;
@@ -932,7 +969,7 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
           
           ManageFeatures($template_id);
           $SuppressMain = true;
-	  }
+          }
        } else {
          Error('You failed to select a template.');
        }
@@ -945,8 +982,14 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
         'context' => 'template',
         'action' => 'edit',
         'submit' => [
-          'Edit metadata',
-          'Manage features'
+	  [
+            'label' => 'Edit metadata',
+	    'id' => 'metadata'
+	  ],
+          [
+	    'label' => 'Manage features',
+	    'id' => 'features'
+	  ]
         ]
       ]);
       $SuppressMain = true;
@@ -985,14 +1028,15 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
     
       # Absorb a new pattern_template.
     
-      $tid = InsertTemplate([
+      $template = InsertTemplate([
         'name' => $_REQUEST['name'],
         'notes' => $_REQUEST['notes']
       ]);
-      Alert("Inserted template, id $tid.");
+      Alert("Inserted template <i>{$template['name']}</i>, id <code>{$template['id']}</code>.");
     }
   }
-}
+} // end actions
+
 if(!$SuppressMain) {
 ?>
 

@@ -1,4 +1,4 @@
-mysql -e 'drop database pps'
+mysql -e 'drop database if exists pps'
 mysql < pps-schema.sql
 mysql < pps-schema-lv-ps.sql
 ./pps-patterns-lv-ps.pl

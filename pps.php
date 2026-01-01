@@ -38,8 +38,15 @@
  */
  
 require 'db.php';
+
 define('FOOT', '<div id="foot"><a href="https://www.publicsphereproject.org/">Public Sphere Project</a></div>');
 define('DEBUG', true);
+define('TYPE', array(
+  'string' => 'varchar(255)',
+  'text' => 'mediumtext',
+  'integer' => 'integer',
+  'image' => 'mediumblob'
+  ));
 
 
 /* DataStoreConnect()
@@ -225,7 +232,7 @@ function GetPattern($id) {
 
 /* InsertPattern()
  *
- *  Insert a pattern record and return the pattern.id.
+ *  Insert a pattern record and return it as an associative array.
  */
 
 function InsertPattern($notes, $template_id) {
@@ -244,7 +251,7 @@ function InsertPattern($notes, $template_id) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
-  return $pdo->lastInsertId();
+  return GetPattern($pdo->lastInsertId());
 
 } /* end InsertPattern() */
 
@@ -279,7 +286,8 @@ function GetTemplates($which = null) {
   try {
     $sth = $pdo->prepare($query);
   } catch(PDOException $e) {
-    echo $e->getMessage(), $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
   try {
@@ -391,13 +399,13 @@ function UpdateTemplate($update) {
   try {
     $sth = $pdo->prepare($sql);
   } catch(PDOException $e) {
-    echo $e->getMessage(), ' ', (int) $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
   try {
     $sth->execute($update);
   } catch(PDOException $e) {
-    echo $e->getMessage(), (int) $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
 } /* end UpdateTemplate() */
@@ -543,13 +551,13 @@ function GetFeatures($which = null) {
   try {
     $sth = $pdo->prepare($query);
   } catch(PDOException $e) {
-    echo $e->getMessage(), $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
   try {
     $rv = $sth->execute($u);
   } catch(PDOException $e) {
-    echo $e->getMessage(), $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
   $features = $sth->fetchall(PDO::FETCH_ASSOC);
@@ -578,6 +586,8 @@ function GetFeature($id) {
 function InsertFeature($params) {
   global $pdo;
 
+  # First, create the pattern_feature record.
+  
   $params['name'] = trim($params['name']);
   if(!strlen($params['name']))
     Error('Name of feature may not be empty.');
@@ -589,21 +599,23 @@ function InsertFeature($params) {
   if(GetFeatures(['name' => $params['name'], 'type' => $params['type']]))
     Error("There is already a feature with name \"{$params['name']}\" of type \"{$params['type']}\" and there cannot be two.");
 
-  $sql = 'INSERT INTO pattern_feature(name, type, notes) VALUES(:name, :type, :notes)';
+  $sql = 'INSERT INTO pattern_feature(name, type, notes) VALUES(?,?,?)';
   if(DEBUG) error_log($sql);
   try {
     $sth = $pdo->prepare($sql);
   } catch(PDOException $e) {
-    echo $e->getMessage(), $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
   try {
-    $rv = $sth->execute($params);
+    $rv = $sth->execute([$params['name'], $params['alias'], $params['notes']]);
   } catch(PDOException $e) {
-    echo $e->getMessage(), $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
-  $feature_id = $pdo->lastInsertId();
+  $feature = GetFeature($pdo->lastInsertId());
+
+  # Create a table to hold the values.
 
   $sql = "CREATE TABLE pf_{$params['name']} (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -618,21 +630,26 @@ function InsertFeature($params) {
   try {
     $pdo->exec($sql);
   } catch(PDOException $e) {
-    echo $e->getMessage(), $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
-  return $feature_id;
+  return $feature;
   
 } /* end InsertFeature() */
 
 
 /* InsertTemplateFeature()
  *
- *  Insert a pt_feature record.
+ *  Insert a pt_feature record and return it as an associative array.
  */
 
 function InsertTemplateFeature($template_id, $feature_id) {
   global $pdo;
+
+  if($feature_id < 1)
+    Error('No feature was selected');
+  if($template_id < 1)
+    Error('No template was selected');
 
   try {
     $sth = $pdo->prepare('INSERT INTO pt_feature (ptid, fid) VALUES(?, ?)');
@@ -646,9 +663,43 @@ function InsertTemplateFeature($template_id, $feature_id) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
-  return $pdo->lastInsertId();
+  return GetTemplateFeature($pdo->lastInsertId());
   
 } /* end InsertTemplateFeature() */
+
+
+/* GetTemplateFeature()
+ *
+ *  Return a pt_feature record, augmented with feature and template names,
+ *  selected by id.
+ */
+
+function GetTemplateFeature($id) {
+  global $pdo;
+
+  try {
+    $sth = $pdo->prepare('SELECT ptf.*, pt.name AS tname, pf.name AS fname
+ FROM pt_feature ptf
+  JOIN pattern_template pt ON ptf.ptid = pt.id
+  JOIN pattern_feature pf ON ptf.fid = pf.id
+ WHERE ptf.id = ?');
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
+    exit();
+  }
+  try {
+    $sth->execute([$id]);
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
+    exit();
+  }
+  $pt = $sth->fetch(PDO::FETCH_ASSOC);
+
+  if(!$pt)
+    return false;
+  return $pt;
+  
+} /* end GetTemplateFeature() */
 
 
 /* DeleteTemplateFeature()
@@ -715,6 +766,12 @@ function UpdateFeature($update) {
   if(isset($update['name']))
     CheckIdentifier($update['name']);
 
+  iF(array_key_exists('type', $update))
+    unset($update['type']);
+  iF(array_key_exists('alias', $update)) {
+    $update['type'] = $update['alias'];
+    unset($update['alias']);
+  }
   $q = '';
   foreach($update as $k => $v) {
     if($k == 'id')
@@ -727,13 +784,13 @@ function UpdateFeature($update) {
   try {
     $sth = $pdo->prepare($sql);
   } catch(PDOException $e) {
-    echo $e->getMessage(), ' ', (int) $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
   try {
     $sth->execute($update);
   } catch(PDOException $e) {
-    echo $e->getMessage(), (int) $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
 
@@ -816,12 +873,13 @@ function InsertTemplate($params) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
-  $template_id = $pdo->lastInsertId();
+  $template = GetTemplate($template_id = $pdo->lastInsertId());
   $rfeatures = GetFeatures(['required' => 1]);
   if(count($rfeatures))
     foreach($rfeatures as $rfeature)
-      InsertTemplateFeature($template_id, $rfeature['id']);
-  return $template_id;
+      $template['features'][$rfeature['name']] =
+        InsertTemplateFeature($template_id, $rfeature['id']);
+  return $template;
   
 } /* end InsertTemplate() */
 

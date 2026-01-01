@@ -33,7 +33,7 @@
 --    CONSTRAINT pattern_ibfk_2 FOREIGN KEY (creator) REFERENCES phpauth_users (id)
 --  );
 --
--- $Id: pps-schema-lv-ps.sql,v 1.3 2025/12/19 15:59:12 rose Exp rose $
+-- $Id: npps-schema-lv-ps.sql,v 1.1 2025/12/31 13:02:56 rose Exp rose $
 
 use pps;
 --
@@ -49,29 +49,29 @@ INSERT INTO pattern_language (name) VALUES ('Liberating Voices');
 --
 INSERT INTO pattern_view(name) VALUES ('Pattern Sphere');
 --
--- 'pf_url' is a pattern feature value table for 'url', type 'tinytext'
+-- 'pf_url' is a pattern feature value table for 'url', type string
 --
-INSERT INTO pattern_feature (name, type) VALUES ('url', 'tinytext');
+INSERT INTO pattern_feature (name, type) VALUES ('url', 'string');
 CREATE TABLE IF NOT EXISTS pf_url (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   pid INT UNSIGNED NOT NULL,
   pfid INT UNSIGNED NOT NULL,
   language CHAR(2) DEFAULT 'en',
-  value TINYTEXT NOT NULL,
+  value VARCHAR(255) NOT NULL,
   PRIMARY KEY (id, language),
   CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
   CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
 );
 --
--- 'pf_title' is a pattern feature value table for 'title', type 'tinytext'
+-- 'pf_title' is a pattern feature value table for 'title', type 'string'
 --
-INSERT INTO pattern_feature (name, type, required) VALUES ('title', 'tinytext', 1);
+INSERT INTO pattern_feature (name, type, required) VALUES ('title', 'string', 1);
 CREATE TABLE IF NOT EXISTS pf_title (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   pid INT UNSIGNED NOT NULL,
   pfid INT UNSIGNED NOT NULL,
   language CHAR(2) DEFAULT 'en',
-  value TINYTEXT NOT NULL,
+  value VARCHAR(255) NOT NULL,
   PRIMARY KEY (id, language),
   CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
   CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
@@ -79,97 +79,97 @@ CREATE TABLE IF NOT EXISTS pf_title (
 --
 -- 'pf_problem' is a pattern feature value table for 'problem', type 'longtext'
 --
-INSERT INTO pattern_feature (name, type) VALUES ('problem', 'longtext');
+INSERT INTO pattern_feature (name, type) VALUES ('problem', 'text');
 CREATE TABLE IF NOT EXISTS pf_problem (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   pid INT UNSIGNED NOT NULL,
   pfid INT UNSIGNED NOT NULL,
   language CHAR(2) DEFAULT 'en',
-  value LONGTEXT NOT NULL,
+  value MEDIUMTEXT NOT NULL,
   PRIMARY KEY (id, language),
   CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
   CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
 );
 --
--- 'pf_discussion' is a pattern feature value table for 'discussion', type 'longtext'
+-- 'pf_discussion' is a pattern feature value table for 'discussion', type 'text'
 --
-INSERT INTO pattern_feature (name, type) VALUES ('discussion', 'longtext');
+INSERT INTO pattern_feature (name, type) VALUES ('discussion', 'text');
 CREATE TABLE IF NOT EXISTS pf_discussion (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   pid INT UNSIGNED NOT NULL,
   pfid INT UNSIGNED NOT NULL,
   language CHAR(2) DEFAULT 'en',
-  value LONGTEXT NOT NULL,
+  value MEDIUMTEXT NOT NULL,
   PRIMARY KEY (id, language),
   CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
   CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
 );
 --
--- 'pf_context' is a pattern feature value table for 'context', type 'longtext'
+-- 'pf_context' is a pattern feature value table for 'context', type 'text'
 --
-INSERT INTO pattern_feature (name, type) VALUES ('context', 'longtext');
+INSERT INTO pattern_feature (name, type) VALUES ('context', 'text');
 CREATE TABLE IF NOT EXISTS pf_context (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   pid INT UNSIGNED NOT NULL,
   pfid INT UNSIGNED NOT NULL,
   language CHAR(2) DEFAULT 'en',
-  value LONGTEXT NOT NULL,
+  value MEDIUMTEXT NOT NULL,
   PRIMARY KEY (id, language),
   CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
   CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
 );
 --
--- 'pf_solution' is a pattern feature value table for 'solution', type 'longtext'
+-- 'pf_solution' is a pattern feature value table for 'solution', type 'text'
 --
-INSERT INTO pattern_feature (name, type) VALUES ('solution', 'longtext');
+INSERT INTO pattern_feature (name, type) VALUES ('solution', 'text');
 CREATE TABLE IF NOT EXISTS pf_solution (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   pid INT UNSIGNED NOT NULL,
   pfid INT UNSIGNED NOT NULL,
   language CHAR(2) DEFAULT 'en',
-  value LONGTEXT NOT NULL,
+  value MEDIUMTEXT NOT NULL,
   PRIMARY KEY (id, language),
   CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
   CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
 );
 --
--- 'pf_card' is a pattern feature value table for 'card', type 'longtext'
+-- 'pf_card' is a pattern feature value table for 'card', type 'text'
 --
-INSERT INTO pattern_feature (name, type) VALUES ('card', 'longtext');
+INSERT INTO pattern_feature (name, type) VALUES ('card', 'text');
 CREATE TABLE IF NOT EXISTS pf_card (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   pid INT UNSIGNED NOT NULL,
   pfid INT UNSIGNED NOT NULL,
   language CHAR(2) DEFAULT 'en',
-  value LONGTEXT NOT NULL,
+  value MEDIUMTEXT NOT NULL,
   PRIMARY KEY (id, language),
   CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
   CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
 );
 --
--- 'pf_image' is a pattern feature value table for 'image', type 'longtext'
+-- 'pf_imagepath' is a pattern feature value table for 'image', type 'text'
 --
-INSERT INTO pattern_feature (name, type) VALUES ('image', 'longtext');
-CREATE TABLE IF NOT EXISTS pf_image (
+INSERT INTO pattern_feature (name, type) VALUES ('imagepath', 'string');
+CREATE TABLE IF NOT EXISTS pf_imagepath (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   pid INT UNSIGNED NOT NULL,
   pfid INT UNSIGNED NOT NULL,
   language CHAR(2) DEFAULT 'en',
-  value LONGTEXT NOT NULL,
+  value VARCHAR(255) NOT NULL,
   PRIMARY KEY (id, language),
   CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
   CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
 );
 --
--- 'pf_synopsis' is a pattern feature value table for 'synopsis', type 'longtext'
+-- 'pf_synopsis' is a pattern feature value table for 'synopsis', type 'text'
 --
-INSERT INTO pattern_feature (name, type) VALUES ('synopsis', 'longtext');
+INSERT INTO pattern_feature (name, type) VALUES ('synopsis', 'text');
 CREATE TABLE IF NOT EXISTS pf_synopsis (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   pid INT UNSIGNED NOT NULL,
   pfid INT UNSIGNED NOT NULL,
   language CHAR(2) DEFAULT 'en',
-  value LONGTEXT NOT NULL,
+  value MEDIUMTEXT NOT NULL,
   PRIMARY KEY (id, language),
   CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
   CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)

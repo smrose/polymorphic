@@ -2,6 +2,11 @@ var faformsubmit
 var faformsubmit2
 var faformtype
 var faformname
+var selecttemplate
+var template_id
+var metadata
+var features
+var tsel
 
 
 /* post()
@@ -52,6 +57,22 @@ function faformtypef() {
 } /* end faformtypef() */
 
 
+/* stidf()
+ *
+ *  Handle 'input' events on the select-template popup. We don't want the
+ *  submit buttons to be active unless a template has been selected.
+ */
+
+function stidf() {
+    submitState = (template_id.value != "0")
+    if(metadata)
+	metadata.disabled = features.disabled = ! submitState
+    if(tsel)
+	tsel.disabled = ! submitState
+
+} /* end stidf()
+
+
 /* init()
  *
  *  Called when page has loaded.
@@ -60,6 +81,17 @@ function faformtypef() {
 function init() {
     faformsubmit = document.querySelector('#faformsubmit')
     faformsubmit2 = document.querySelector('#faformsubmit2')
+    selecttemplate = document.querySelector('#selecttemplate')
+
+    if(selecttemplate) {
+	if(template_id = document.querySelector('#template_id'))
+	    template_id.addEventListener('input', stidf)
+	metadata = document.querySelector('#metadata')
+	features = document.querySelector('#features')
+	tsel = document.querySelector('#tsel')
+	if(metadata || features || tsel)
+	    stidf()
+    }
 
     /* Set and call 'input' event listeners on the 'type' and 'name'
      * fields in the feature add/edit page. */

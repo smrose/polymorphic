@@ -68,7 +68,7 @@ sub pinsert {
 
 # Fetch the patterns from ps.
 
-$dbh = DBI->connect('dbi:mysql:database=ps', 'root', '<password>')
+$dbh = DBI->connect('dbi:mysql:database=ps', 'root', '%7<"Fv_Ba2J+jP[8')
     or die 'connect';
 $patterns = $dbh->selectall_hashref('SELECT p.* FROM pattern p
   JOIN planguage pl ON p.plid = pl.id
@@ -78,7 +78,7 @@ $dbh->disconnect;
 
 # Get the pattern_features from pps.
 
-$dbh = DBI->connect('dbi:mysql:database=pps', 'pps', '<password>')
+$dbh = DBI->connect('dbi:mysql:database=pps', 'pps', 'Pa++3rn 5ph3r3')
     or die 'connect';
 
 # Get the pattern_template id.
