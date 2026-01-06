@@ -16,16 +16,16 @@ header {
 #reiner {
     margin: 1em;
 }
-#ass {
+.ass {
     font-family: monospace;
     font-weight: bold;
     font-size: 8pt;
+    width: max-content;
 }
-#ass:hover {
-    bacground-color: #fcc;
+.ass:hover {
+    background-color: #fcc;
 }
 #posterior {
-    display: grid;
     grid-template-columns: auto auto;
     border: 1px solid black;
     width: max-content;
@@ -34,6 +34,24 @@ header {
     margin: .5em;
 }
 #posterior div {
+    padding: .1em;
+    border: 1px dotted grey;    
+}
+#booty {
+    display: grid;
+    grid-template-columns: auto auto;
+    border: 1px solid black;
+    width: max-content;
+    font-size: 10pt;
+    display: none;
+    margin: .5em;
+}
+.bun {
+    grid-column: span 2;
+    background-color: black;
+    color: white;
+}
+div.booty {
     padding: .1em;
     border: 1px dotted grey;    
 }
@@ -67,6 +85,10 @@ header {
     background-color: black;
     text-align: center;
     font-weight: bold;
+}
+.required {
+    font-weight: bold;
+    color: #900;
 }
 #faform div, #fform div {
     padding: .2em;

@@ -229,7 +229,10 @@ function PatternForm($action, $id) {
     $title = "Editing Pattern <i>$ptitle</i>";
     $context = "<input type=\"hidden\" name=\"id\" value=\"$id\">\n";
     $nvalue = $pattern['notes'];
-    $note = "<p class=\"alert\">Editing a pattern with id <code>$id</code></p>";
+    $note = "<p class=\"alert\">Editing a pattern with id <code>$id</code></p>
+    
+<h2>$ptitle</h2>
+";
   } else {
     $title = 'Adding Pattern';
     $template = GetTemplate($id);
@@ -242,38 +245,82 @@ function PatternForm($action, $id) {
 <p class=\"alert\">Adding a pattern with template
 <code>{$template['name']}</code></p>";
   }
-  print "<h2>$ptitle</h2>
+print "$note
 
-$note
+<p>Required features are displayed <span class=\"required\">like this</span>.</p>
 
-<form action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featureform\" method=\"POST\">
+<form enctype=\"multipart/form-data\" action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featureform\" method=\"POST\">
+ <div class=\"fh\">Feature name</div>
+ <div class=\"fh\">Value</div>
 <input type=\"hidden\" name=\"pattern\" value=\"$action\">
 $context
 ";
+
+  /* Loop on features for this template, offering input elements for each.
+   * We name the input fields with a "f-" prefix on the feature name to
+   * minimize the chance of a clash with another parameter.
+   *
+   * Features of most types have but a name and a value, but image types
+   * have both an input type=file as well as a value for the alternate text.
+   * We manage that by naming the file field with pattern_feature.name and
+   * the text field with a suffix of "-alttext".
+   */
+
   foreach($features as $feature) {
-    $fname = "f-{$feature['name']}";
+
     if($feature['type'] == 'integer') {
+    
+      # use 5-char <input type="text">
+
       if(isset($feature['value']))
         $value = " value=\"{$feature['value']}\"";
       else
         $value = '';
-      $input = "<input name=\"$fname\" type=\"text\" size=\"5\"$value>\n";
-    } elseif($feature['type'] == 'tinytext') {
+      $input = "<input name=\"f-{$feature['name']}\" type=\"text\" size=\"5\"$value>\n";
+
+    } elseif($feature['type'] == 'string') {
+
+      # use <input type="text"> for string type
+
       if(isset($feature['value']))
         $value = " value=\"{$feature['value']}\"";
       else
         $value = '';
-      $input = "<input name=\"$fname\" type=\"text\" size=\"50\"$value>\n";
-    } else {
+      $input = "<input name=\"f-{$feature['name']}\" type=\"text\" size=\"50\"$value>\n";
+
+    } elseif($feature['type'] == 'image') {
+
+      # use <input type="file"> for images, <input type="text"> for alttext
+
+      if(isset($feature['alttext']))
+        $value = " value=\"{$feature['alttext']}\"";
+      else
+        $value = '';
+      $input = "<input name=\"{$feature['name']}\" type=\"file\">";
+      $input2 = "<input type=\"text\" name=\"f-{$feature['name']}\" size=\"50\"$value>";
+    
+    } elseif($feature['type'] == 'text') {
+
+      # use a <textarea> for text type.
+      
       if(isset($feature['value']))
         $value = $feature['value'];
       else
         $value = '';
-      $input = "<textarea name=\"$fname\" rows=\"3\" cols=\"80\">$value</textarea>\n";
+      $input = "<textarea name=\"f-{$feature['name']}\" rows=\"3\" cols=\"80\">$value</textarea>\n";
+    } else {
+      Error("Unrecognized feature type <code>{$feature['type']}</code>");
     }
-    print "<div class=\"fname\">{$feature['name']} (${feature['type']}):</div>
+    $class = ($feature['required']) ? 'fname required"' : 'fname';
+
+    print " <div class=\"$class\">{$feature['name']} ({$feature['type']}):</div>
  <div>$input</div>
 ";
+    if($feature['type'] == 'image')
+      print " <div class=\"fname required\" style=\"font-size: 80%\">Alternate text:</div>
+ <div>$input2</div>
+";
+
   } // end loop on features
   
   print "<div class=\"fname\">
@@ -304,6 +351,7 @@ function FeatureForm($id = null) {
     # Editing an existing feature.
     
     $feature = GetFeature($id);
+    $checked = $feature['required'] ? ' checked="checked"' : '';
     if(!isset($feature))
       Error('System error: no feature with id <code>$id</code> exists.');
     $fname = " value=\"{$feature['name']}\"";
@@ -342,7 +390,10 @@ function FeatureForm($id = null) {
 </p>
 ";
     $another = '<input type="submit" id="faformsubmit2" name="submit" value="' . ANOTHER . "\">\n";
-    $instr = "<p class=\"alert\">Enter a name, data type, and optional notes for this new feature.</p>\n";
+    $instr = "<p class=\"alert\">Enter a name, data type, and optional notes
+for this new feature. Check the <code>Required?</code> box if every pattern
+using a template with this feature is required to have a value for it.</p>
+";
   }
   
   $typemenu = "<select name=\"type\" id=\"faformtype\"$disabled>
@@ -352,9 +403,10 @@ function FeatureForm($id = null) {
     $selected = (isset($feature) && $feature['type'] == $alias)
       ? ' selected="selected"' : ''; 
     $typemenu .= " <option value=\"$alias\"$selected>$alias</option>\n";
+    $checked = '';
   }
   $typemenu .= "</select>\n";
-  
+
   print "$instr
 <form action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featureform\" method=\"POST\">
  <input type=\"hidden\" name=\"feature\" value=\"specify\">
@@ -364,6 +416,9 @@ $fid
  
  <div class=\"fname\">Type:</div>
  <div>$typemenu</div>
+
+ <div class=\"fname\">Required?</div>
+ <div><input type=\"checkbox\" name=\"required\"$checked></div>
 
  <div class=\"fname\">Notes:</div>
  <div><textarea name=\"notes\" rows=\"3\" cols=\"80\">$fnotes</textarea></div>
@@ -576,7 +631,7 @@ function ManageFeatures($template_id) {
  <option value="0">Select a feature to add</option>
 ';
     foreach($ufeatures as $ufeature) {
-      $fmenu .= " <option value=\"{$ufeature['id']}\">${ufeature['name']} - {$ufeature['type']}</option>\n";
+      $fmenu .= " <option value=\"{$ufeature['id']}\">{$ufeature['name']} - {$ufeature['type']}</option>\n";
     }
     $fmenu .= '</select>
 ';
@@ -718,8 +773,9 @@ function AbsorbPatternUpdate() {
       
         if($features[$name]['value'] == $v)
           continue; # no change
-        else
-          $update[] = ['name' => $name, 'value' => $v];
+        else {
+          $update[$name] = ['name' => $name, 'value' => $v];
+	}
       } else {
 
         # pattern does not have this feature
@@ -769,7 +825,11 @@ function AbsorbNewPattern() {
   $template_id = $_REQUEST['template_id'];
   $pattern = InsertPattern($notes, $template_id);
   foreach($features as $fname => $fvalue)
-    InsertFeatureValue($pattern['id'], $fname, $fvalue);
+    InsertFeatureValue([
+      'pid' => $pattern['id'],
+      'fname' => $fname,
+      'value' => $fvalue
+    ]);
   $pattern['features'] = $features;
   return $pattern;
   
@@ -798,13 +858,26 @@ function AbsorbNewPattern() {
 <?php
 
 if(DEBUG && count($_POST)) {
-  print "<div id=\"ass\">Show POST parameters.</div>
+  print "<div class=\"ass\" id=\"ass\">Show POST parameters</div>
 <div id=\"posterior\">\n";
   foreach($_POST as $k => $v) {
-    print "<div>$k</div>\n<div>$v</div>\n";
+    print " <div>$k</div>\n<div>$v</div>\n";
   }
   print "</div>\n";
 }
+if(DEBUG && count($_FILES)) {
+  print '<div class="ass" id="bum">Show FILES array</div>
+<div id="booty">
+';
+  foreach($_FILES as $fn => $file) {
+    print "<div class=\"bun\">$fn</div>\n";
+    foreach($file as $k => $v) {
+      print " <div class=\"booty\">$k</div>
+ <div class=\"booty\">$v</div>\n";
+    }
+  }
+  print "</div>\n";
+}  
 
 if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
   true;
@@ -891,7 +964,7 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
   } elseif($_REQUEST['feature'] == 'specify') {
 
     if(array_key_exists($_REQUEST['type'], TYPE))
-      $type = TYPE[$_REQUEST['type']];
+      $type = $_REQUEST['type'];
     else
       Error("Type <code>{$_REQUEST['type']}</code> is unknown");
 

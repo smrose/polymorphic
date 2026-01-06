@@ -20,6 +20,12 @@ function post(event) {
 
 } // end post()
 
+function files(event) {
+    document.querySelector('#bum').style.display = 'none'
+    document.querySelector('#booty').style.display = 'grid'
+
+} // end files()
+
 
 /* addFeature()
  *
@@ -105,6 +111,8 @@ function init() {
     
     if(ass = document.querySelector('#ass'))
 	ass.addEventListener('click', post)
+    if(bum = document.querySelector('#bum'))
+	bum.addEventListener('click', files)
     arow = document.querySelector('#arow')
     if(fform = document.querySelector('#addfeature'))
 	abutton.addEventListener('click', addFeature)

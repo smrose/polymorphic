@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS language (
   description VARCHAR(255) NOT NULL,
   PRIMARY KEY (code)
 );
+INSERT INTO language(code, description) VALUES('en', 'US English');
 --
 -- pattern note with language
 --

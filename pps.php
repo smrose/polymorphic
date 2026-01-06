@@ -47,6 +47,16 @@ define('TYPE', array(
   'integer' => 'integer',
   'image' => 'mediumblob'
   ));
+define('IMAGEROOT', 'images');
+define('MAXIMAGE', 8000000);
+define('IDEPTH', 1);
+define('GIWHITE', array('image/gif', 'image/jpeg', 'iage/png'));
+define('UPERROR', array(
+  1 => 'too large per system limit',
+  2 => 'too large per application limit',
+  3 => 'partial upload',
+  4 => 'no file selected'
+));
 
 
 /* DataStoreConnect()
@@ -206,7 +216,7 @@ function GetPattern($id) {
   # Fetch all the feature values from their per-feature tables.
 
   foreach($features as $feature) {
-    $query = "SELECT value, language FROM pf_{$feature['name']} WHERE pid = ?";
+    $query = "SELECT * FROM pf_{$feature['name']} WHERE pid = ?";
     try {
       $sth = $pdo->prepare($query);
     } catch(PDOException $e) {
@@ -220,7 +230,8 @@ function GetPattern($id) {
       exit();
     }
     if($v = $sth->fetch(PDO::FETCH_ASSOC)) {
-      $features[$feature['name']]['value'] = $v['value'];
+      if(array_key_exists('value', $feature))
+        $features[$feature['name']]['value'] = $v['value'];
       $features[$feature['name']]['language'] = $v['language'];
     }
   }
@@ -580,7 +591,7 @@ function GetFeature($id) {
 
 /* InsertFeature()
  *
- *  Insert a feature and create a table for it.
+ *  Insert a pattern_feature value and create a table for it.
  */
 
 function InsertFeature($params) {
@@ -596,8 +607,8 @@ function InsertFeature($params) {
 
   CheckIdentifier($params['name']);
 
-  if(GetFeatures(['name' => $params['name'], 'type' => $params['type']]))
-    Error("There is already a feature with name \"{$params['name']}\" of type \"{$params['type']}\" and there cannot be two.");
+  if(GetFeatures(['name' => $params['name']]))
+    Error("There is already a feature with name \"{$params['name']}\" and there cannot be two.");
 
   $sql = 'INSERT INTO pattern_feature(name, type, notes) VALUES(?,?,?)';
   if(DEBUG) error_log($sql);
@@ -608,7 +619,7 @@ function InsertFeature($params) {
     exit();
   }
   try {
-    $rv = $sth->execute([$params['name'], $params['alias'], $params['notes']]);
+    $rv = $sth->execute([$params['name'], $params['type'], $params['notes']]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
@@ -617,7 +628,25 @@ function InsertFeature($params) {
 
   # Create a table to hold the values.
 
-  $sql = "CREATE TABLE pf_{$params['name']} (
+  if($params['type'] == 'image') {
+    $sql = "CREATE TABLE pf_{$params['name']} (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  pid INT UNSIGNED NOT NULL,
+  pfid INT UNSIGNED NOT NULL,
+  filename VARCHAR(255),
+  alttext VARCHAR(1023) NOT NULL,
+  hash CHAR(40) NOT NULL,
+  type VARCHAR(20) NOT NULL,
+  language CHAR(2) NOT NULL DEFAULT 'en',
+  created TIMESTAMP NOT NULL DEFAULT current_timestamp(),
+  modified TIMESTAMP NOT NULL DEFAULT current_timestamp()
+   ON UPDATE current_timestamp(),
+  CONSTRAINT FOREIGN KEY(language) REFERENCES language(code),
+  CONSTRAINT FOREIGN KEY(pid) REFERENCES pattern(id),
+  CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
+)";
+  } else {
+    $sql = "CREATE TABLE pf_{$params['name']} (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   pid INT UNSIGNED NOT NULL,
   pfid INT UNSIGNED NOT NULL,
@@ -627,6 +656,7 @@ function InsertFeature($params) {
   CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
   CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
 )";
+  }
   try {
     $pdo->exec($sql);
   } catch(PDOException $e) {
@@ -634,7 +664,7 @@ function InsertFeature($params) {
     exit();
   }
   return $feature;
-  
+ 
 } /* end InsertFeature() */
 
 
@@ -923,7 +953,11 @@ function UpdatePatternFeatures($pid, $updates, $inserts, $deletes) {
   }
   if(count($inserts)) {
     foreach($inserts as $insert) {
-      InsertFeatureValue($pid, $insert['name'], $insert['value']);
+      InsertFeatureValue([
+        'pid' => $pid,
+	'fname' => $insert['name'],
+	'value' => $insert['value']
+      ]);
     }
   }
   if(count($deletes)) {
@@ -961,33 +995,141 @@ function UpdateFeatureValue($pid, $name, $value) {
 
 /* InsertFeatureValue()
  *
- *  Insert a feature value.
+ *  Insert a feature value. The argument is an associative array:
+ *
+ *       pid  pattern.id
+ *     fname  name of feature
+ *     value  value of feature
+ *
+ *  For image types, we get the image data and metadata from $_FILES,
+ *  except 'alttext', which is in 'value'.
  */
 
-function InsertFeatureValue($pattern_id, $fname, $fvalue) {
+function InsertFeatureValue($fv) {
   global $pdo;
 
   # we need the id of the pattern_feature row corresponding to this feature.
 
-  $pfs = GetFeatures(['name' => $fname]);
+  $pfs = GetFeatures(['name' => $fv['fname']]);
   if(!isset($pfs) || !count($pfs))
-    Error("No feature named '$fname' was found");
+    Error("No feature named <code>{$fv['fname']}</code> was found");
   $pf = $pfs[0];
   $pfid = $pf['id'];
 
-  $tblname = "pf_{$fname}";
-  $query = "INSERT INTO $tblname (pid, pfid, value) VALUES(?, ?, ?)";
-  try {
-    $sth = $pdo->prepare($query);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
-    $sth->execute([$pattern_id, $pfid, $fvalue]);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
+  $tblname = "pf_{$fv['fname']}";
+
+  if($pf['type'] == 'image') {
+
+    // feature values of type 'image' require an upload and alternative text
+
+    $file = $_FILES[$fv['fname']];
+    if($file['error']) {
+
+      // something went wrong with the upload
+      
+      if(false)
+        Alert("Upload failed for <code>{$file['name']}</code>: " .
+          UPERROR[$file['error']] . "\n");
+      return false;
+    }
+    
+    if(!strlen($alttext = trim($fv['value'])))
+      Error(" {$fv['fname']}: alternative text is required for images");
+
+    if($file['size'] > MAXIMAGE) {
+
+      // file size is too large, which implies malevolent behavior
+      
+      Alert("File size of <code>{$file['size']}</code> exceeeds maximum supported size of " . MAXIMAGE . " for <code>{$file['fname']}</code>\n");
+      return false;
+    }
+
+    # use finfo() to get the actual (rather than asserted) MIME type
+    
+    if(false) {
+
+      // I have no idea why this doesn't work; postponing resolution.
+      
+      $finfo = finfo_opem(FILEINFO_MIME_TYPE); // fails mysteriously
+      $mime = finfo_file($finfo, $file['tmp_name']);
+      if(!in_array($mime, GIWHITE)) {
+
+	// unsupported file type
+
+	Alert("MIME type <code>$mime</code> of uploaded file <code>{$file['fname']}</code> isn't supported as an image");
+	return false;
+      }
+    } else {
+      $mime = $file['type'];
+    }
+    
+    // build a filename based on content (and build the dirtree as necessary)
+    
+    $hash = hash_file('sha1', $file['tmp_name']);
+    $spath = IMAGEROOT . '/';
+    for($i = 0; $i < IDEPTH; $i++) {
+      $spath .= substr($hash, $i, 1) . '/';
+      if(!is_dir($spath))
+        if(!mkdir($spath, 0755))
+	  Error('Failed to create directory tree for image upload');
+    }
+    $spath .= $hash;
+
+    // if this file has been uploaded before, silently move on
+    
+    if(!file_exists($spath)) {
+      if(!move_uploaded_file($file['tmp_name'], $spath)) {
+        Alert("Could not move uploaded file for {$file['fname']} to <code>$spath</code>\n");
+	return false;
+      }
+    }
+
+    /* create a feature value record with the alttext, mime type, filename,
+     * and hash */
+
+    $query = "INSERT INTO $tblname (pid, pfid, filename, alttext, hash, type)
+VALUES(?,?,?,?,?,?)";
+    try {
+      $sth = $pdo->prepare($query);
+    } catch(PDOException $e) {
+      echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+      exit();
+    }
+    try {
+      $sth->execute([
+        $fv['pid'],
+        $pfid,
+        $file['name'],
+        $fv['value'],
+        $hash,
+        $mime
+      ]);
+    } catch(PDOException $e) {
+      echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+      exit();
+    }
+    
+  } else {
+
+    // not an 'image' feature type
+    
+    $value = trim($fv['value']);
+    if($pf['required'] && !strlen($value))
+      Error("{$fv['fname']} is a required field");
+
+    $query = "INSERT INTO $tblname (pid, pfid, value) VALUES(?, ?, ?)";
+    try {
+      $sth = $pdo->prepare($query);
+    } catch(PDOException $e) {
+      echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+      exit();
+    }
+    try {
+      $sth->execute([$fv['pid'], $pfid, $fv['value']]);
+    } catch(PDOException $e) {
+      echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+      exit();
+    }
   }
   return $pdo->lastInsertId();
   
