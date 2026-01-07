@@ -166,3 +166,22 @@ input[type=submit]:disabled {
     color: #600;
     font-weight: bold;
 }
+.ilink {
+    font-family: monospace;
+}
+.ilink:hover {
+    background-color: #fcc;
+}
+.imagebox {
+    position: fixed;
+    right: 5vw;
+    top: 10vw;
+    width: 40vw;
+    border: 2px solid black;
+    display: none;
+}
+.imagebox img {
+    width: 100%;
+    height: 100%;
+    object-fit: scaledown;
+ }

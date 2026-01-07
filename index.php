@@ -262,11 +262,13 @@ $context
    *
    * Features of most types have but a name and a value, but image types
    * have both an input type=file as well as a value for the alternate text.
-   * We manage that by naming the file field with pattern_feature.name and
-   * the text field with a suffix of "-alttext".
    */
 
+  $imgs = ''; # image preview elements
+
   foreach($features as $feature) {
+
+    $ilink = '';
 
     if($feature['type'] == 'integer') {
     
@@ -298,7 +300,24 @@ $context
         $value = '';
       $input = "<input name=\"{$feature['name']}\" type=\"file\">";
       $input2 = "<input type=\"text\" name=\"f-{$feature['name']}\" size=\"50\"$value>";
-    
+      
+      // link to view existing image
+      
+      if(isset($feature['hash'])) {
+
+        /* There is an image to preview:
+	 *  compute the path
+	 *  display a link to unhide/hide the preview element
+         *  add a <div class="imagebox"> containing the image preview, hidden
+	 */
+
+	$ipath = IMAGEROOT . '/';
+	for($i = 0; $i < IDEPTH; $i++)
+	  $ipath .= substr($feature['hash'], $i, 1) . '/';
+	$ipath .= $feature['hash'];
+        $ilink = "<span class=\"ilink\" id=\"l-{$feature['hash']}\" title=\"{$feature['filename']}\">preview</span>";
+	$imgs .= "<div class=\"imagebox\" id=\"i-{$feature['hash']}\"><img src=\"$ipath\"></div>\n";
+      }
     } elseif($feature['type'] == 'text') {
 
       # use a <textarea> for text type.
@@ -311,10 +330,10 @@ $context
     } else {
       Error("Unrecognized feature type <code>{$feature['type']}</code>");
     }
-    $class = ($feature['required']) ? 'fname required"' : 'fname';
+    $class = ($feature['required']) ? 'fname required' : 'fname';
 
     print " <div class=\"$class\">{$feature['name']} ({$feature['type']}):</div>
- <div>$input</div>
+ <div>{$input}{$ilink}</div>
 ";
     if($feature['type'] == 'image')
       print " <div class=\"fname required\" style=\"font-size: 80%\">Alternate text:</div>
@@ -333,6 +352,7 @@ $context
   <input type=\"submit\" name=\"submit\" value=\"Cancel\">
  </div>
 </form>
+$imgs;
 ";
   
 } /* end PatternForm() */
@@ -662,7 +682,7 @@ page to add that.)</p>
 <input type=\"hidden\" name=\"action\" value=\"addfeature\">
 <div style=\"text-align: center\">$fmenu</div>
 <div>
- <input type=\"submit\" name=\"submit\" value=\"Submit\">
+ <input type=\"submit\" name=\"submit\" value=\"Absorb\">
  <input type=\"submit\" name=\"submit\" value=\"" . ANOTHER . "\">
  <input type=\"submit\" name=\"submit\" value=\"Cancel\">
 </div>

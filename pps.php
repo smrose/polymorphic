@@ -194,7 +194,7 @@ function GetPattern($id) {
   # Fetch all the features associated with the template associated with
   # this pattern.
   
-  $query = "SELECT pf.id, pf.name, pf.type
+  $query = "SELECT pf.id, pf.name, pf.type, pf.required
  FROM pt_feature ptf JOIN pattern_feature pf ON ptf.fid = pf.id
  WHERE ptf.ptid = (SELECT ptid FROM pattern WHERE id = ?)";
   try {
@@ -230,11 +230,25 @@ function GetPattern($id) {
       exit();
     }
     if($v = $sth->fetch(PDO::FETCH_ASSOC)) {
-      if(array_key_exists('value', $feature))
+
+      // found a feature value
+      
+      if(array_key_exists('value', $v))
         $features[$feature['name']]['value'] = $v['value'];
       $features[$feature['name']]['language'] = $v['language'];
+      $features[$feature['name']]['required'] = $feature['required'];
+      $features[$feature['name']]['type'] = $feature['type'];
+      if($feature['type'] == 'image') {
+
+        // image features have alttext, filename, and hash attributes
+	
+        $features[$feature['name']]['alttext'] = $v['alttext'];
+        $features[$feature['name']]['filename'] = $v['filename'];
+        $features[$feature['name']]['hash'] = $v['hash'];
+      }
     }
-  }
+  } // end loop on features
+  
   $pattern['features'] = $features;
   return $pattern;
   

@@ -20,6 +20,11 @@ function post(event) {
 
 } // end post()
 
+/* files()
+ *
+ *  Toggle visibility of a grid of FILES parameters.
+ */
+
 function files(event) {
     document.querySelector('#bum').style.display = 'none'
     document.querySelector('#booty').style.display = 'grid'
@@ -29,7 +34,7 @@ function files(event) {
 
 /* addFeature()
  *
- *  Add a row to the ManageFeatures() form.
+ *  Add a row to the ManageFeatures() form. NOT CURRENTLY USED.
  */
 
 function addFeature(event) {
@@ -79,6 +84,32 @@ function stidf() {
 } /* end stidf()
 
 
+/* showi()
+ *
+ *  Find the <DIV> with the ID corresponding to its preview <SPAN> and
+ *  make it visible.
+ */
+
+function showi(event) {
+  ibox = document.querySelector('#i-' + event.target.id.substring(2))
+  ibox.style.display = 'block'
+
+} // end showi()
+
+
+/* hidei()
+ *
+ *  Find the <DIV> with the ID corresponding to its preview <SPAN> and
+ *  hide it.
+ */
+
+function hidei(event) {
+  ibox = document.querySelector('#i-' + event.target.id.substring(2))
+  ibox.style.display = 'none'
+
+} // end hidei()
+
+
 /* init()
  *
  *  Called when page has loaded.
@@ -116,5 +147,12 @@ function init() {
     arow = document.querySelector('#arow')
     if(fform = document.querySelector('#addfeature'))
 	abutton.addEventListener('click', addFeature)
+
+    // Set focus and blur event listeners on elements with class 'ilink'.
+
+    for(const ilink of document.querySelectorAll('.ilink')) {
+      ilink.addEventListener('mouseenter', showi)
+      ilink.addEventListener('mouseleave', hidei)
+    }
     
 } // end init()
