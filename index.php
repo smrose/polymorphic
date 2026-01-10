@@ -306,17 +306,23 @@ $context
       if(isset($feature['hash'])) {
 
         /* There is an image to preview:
-	 *  compute the path
-	 *  display a link to unhide/hide the preview element
+         *  compute the path
+         *  display a link to unhide/hide the preview element
          *  add a <div class="imagebox"> containing the image preview, hidden
-	 */
+         */
 
-	$ipath = IMAGEROOT . '/';
-	for($i = 0; $i < IDEPTH; $i++)
-	  $ipath .= substr($feature['hash'], $i, 1) . '/';
-	$ipath .= $feature['hash'];
-        $ilink = "<span class=\"ilink\" id=\"l-{$feature['hash']}\" title=\"{$feature['filename']}\">preview</span>";
-	$imgs .= "<div class=\"imagebox\" id=\"i-{$feature['hash']}\"><img src=\"$ipath\"></div>\n";
+        $ipath = IMAGEROOT . '/';
+        for($i = 0; $i < IDEPTH; $i++)
+          $ipath .= substr($feature['hash'], $i, 1) . '/';
+        $ipath .= $feature['hash'];
+        $ilink = "<span class=\"ilink\" id=\"l-{$feature['hash']}\" title=\"{$feature['filename']}\">&nbsp;preview&nbsp;</span>";
+        $imgs .= "<div class=\"imagebox\" id=\"i-{$feature['hash']}\"><img src=\"$ipath\">
+ <div id=\"imagemeta\">
+  <div class=\"h\">File name:</div>
+  <div><code>{$feature['filename']}</code></div>
+ </div>
+</div>
+";
       }
     } elseif($feature['type'] == 'text') {
 
@@ -352,7 +358,7 @@ $context
   <input type=\"submit\" name=\"submit\" value=\"Cancel\">
  </div>
 </form>
-$imgs;
+$imgs
 ";
   
 } /* end PatternForm() */
@@ -495,9 +501,9 @@ function AddPattern($template_id = null) {
       'action' => 'add',
       'submit' => [
         [
-	  'id' => 'tsel',
+          'id' => 'tsel',
           'label' => 'Select'
-	]
+        ]
       ],
       'notes' => "<p class=\"alert\">Select the template that this pattern will use.
 Templates with no associated features are disabled.</p>\n"
@@ -584,7 +590,7 @@ function SelectPattern($template_id = null) {
     foreach($patterns as $pattern) {
       $title = (isset($pattern['title']))
         ? $pattern['title'] : '(no title)';
-      $selpattern .= " <option value=\"{$pattern['id']}\">$title - {$pattern['type']} (id {$pattern['id']})</option>\n";
+      $selpattern .= " <option value=\"{$pattern['id']}\">$title - (id {$pattern['id']})</option>\n";
     }
     $selpattern .= '</select>
 ';
@@ -616,8 +622,8 @@ template. Filter the pattern selection menu to those of a particular template, o
       'action' => 'edit',
       'submit' => [
         [
-	  'label' => 'Select'
-	]
+          'label' => 'Select'
+        ]
       ]
     ]);
   }
@@ -769,38 +775,89 @@ function RemoveFeatures($template_id, $features) {
 
 /* AbsorbPatternUpdate()
  *
- *  Implement pattern update.
+ *  Implement pattern update, including associated feature values. Return
+ *  true if we took any actions.
  */
 
 function AbsorbPatternUpdate() {
+
   $pattern_id = $_REQUEST['id'];
   $pattern = GetPattern($pattern_id);
   $features = $pattern['features'];
+
   $update = [];
   $insert = [];
   $delete = [];
+
   $fnames = [];
 
   # Loop on form fields, looking for feature value changes and additions.
   
   foreach($_REQUEST as $k => $v) {
-    if(preg_match('/^f-(.+)$/', $k, $matches)) {
-      $name = $matches[1];
-      $fnames[$name] = 1;
-      if(isset($features[$name]) && isset($features[$name]['value'])) {
-
-        # pattern has a value for this feature
+  
+    if(!preg_match('/^f-(.+)$/', $k, $matches))
+      continue;
       
-        if($features[$name]['value'] == $v)
-          continue; # no change
-        else {
-          $update[$name] = ['name' => $name, 'value' => $v];
-	}
-      } else {
+    $name = $matches[1];
+    $fnames[$name] = 1;
+    $feature = $features[$name];
 
-        # pattern does not have this feature
+    if(isset($feature) && isset($feature['value'])) {
 
-        $insert[] = ['name' => $name, 'value' =>$v];
+      # pattern has a value for this feature
+      
+      if($feature['value'] == $v)
+        continue; # no change
+      else
+        $update[$name] = ['name' => $name, 'value' => $v];
+
+    } elseif(isset($feature) && $feature['type'] == 'image' &&
+             isset($feature['hash'])) {
+
+      # feature is an existing image; alttext and/or hash and filename
+      # may have changed
+
+      $file = $_FILES[$name];
+      $file['alttext'] = trim($v);
+
+      if($haveUpload = ($file['error'] != NOFILE))
+        $file = CheckFile($file);
+
+      if(($haveUpload && $feature['hash'] != $file['hash']) ||
+         ($feature['alttext'] != $v)) {
+        $update[$name] = [
+          'featurename' => $name,
+          'pid' => $pattern_id
+        ];
+        if($haveUpload && $feature['hash'] != $file['hash']) {
+          $update[$name]['hash'] = $file['hash'];
+          $update[$name]['name'] = $file['name'];
+        }
+        if($feature['alttext'] != $v)
+          $update[$name]['alttext'] = $v;
+      }          
+    } else {
+
+      # pattern does not have a value for this feature; insert
+
+      if($feature['type'] == 'image') {
+
+        // feature values of type 'image' require upload and alternative text
+
+        $file = $_FILES[$name];
+        if($file['error'] == NOFILE)
+          continue;
+	$file['alttext'] = trim($_REQUEST[$k]);
+        if($file = CheckFile($file))
+	  $insert[$name] = [
+            'fname' => $name,
+            'alttext' => $file['alttext'],
+            'hash' => $file['hash']
+          ];
+	else
+	  Alert("Failed to set a value for $name.");
+       } else {
+        $insert[] = ['name' => $name, 'value' => $v];
       }
     }
   } # end loop on features in form
@@ -811,8 +868,15 @@ function AbsorbPatternUpdate() {
     if(!array_key_exists($feature['name'], $fnames))
       $delete[] = ['name' => $feature['name']];
   }
+
+  # perform the pattern feature changes.
+  
   UpdatePatternFeatures($pattern_id, $update, $insert, $delete);
+
   $did = (count($update) > 0) || (count($insert) > 0) || (count($delete) > 0);
+
+  # update the pattern.note if needed
+
   if($_REQUEST['notes'] != $pattern['notes']) {
     UpdatePattern($pattern_id, $_REQUEST['notes']);
     $did = true;
@@ -831,7 +895,11 @@ function AbsorbNewPattern() {
 
   // collect the features specified in the form
   
+  $template = GetTemplate($template_id = $_REQUEST['template_id']);
+  $template_features = $template['features'];
+  
   $features = [];
+
   foreach($_REQUEST as $k => $v) {
     if(preg_match('/^f-(.+)$/', $k, $matches)) {
 
@@ -844,12 +912,28 @@ function AbsorbNewPattern() {
   $notes = $_REQUEST['notes'];
   $template_id = $_REQUEST['template_id'];
   $pattern = InsertPattern($notes, $template_id);
-  foreach($features as $fname => $fvalue)
-    InsertFeatureValue([
-      'pid' => $pattern['id'],
-      'fname' => $fname,
-      'value' => $fvalue
-    ]);
+  foreach($features as $fname => $fvalue) {
+    if($template_features[$fname]['type'] == 'image') {
+      $file = $_FILES[$fname];
+      if($haveUpload = ($file['error'] != NOFILE)) {
+        $file['alttext'] = $fvalue;
+        $file = CheckFile($file);
+	InsertFeatureValue([
+	  'pid' => $pattern['id'],
+	  'fname' => $fname,
+	  'alttext' => $file['alttext'],
+	  'hash' => $file['hash'],
+	  'name' => $file['name']
+	]);
+      }
+    } else {
+      InsertFeatureValue([
+	'pid' => $pattern['id'],
+	'fname' => $fname,
+	'value' => $fvalue
+      ]);
+    }
+  }
   $pattern['features'] = $features;
   return $pattern;
   
@@ -1075,14 +1159,14 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
         'context' => 'template',
         'action' => 'edit',
         'submit' => [
-	  [
-            'label' => 'Edit metadata',
-	    'id' => 'metadata'
-	  ],
           [
-	    'label' => 'Manage features',
-	    'id' => 'features'
-	  ]
+            'label' => 'Edit metadata',
+            'id' => 'metadata'
+          ],
+          [
+            'label' => 'Manage features',
+            'id' => 'features'
+          ]
         ]
       ]);
       $SuppressMain = true;
@@ -1110,6 +1194,7 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
       
         # Absorbing a pattern_template edit.
 
+        CheckIdentifier($_REQUEST['name']);
         UpdateTemplate([
           'id' => $template_id,
           'name' => $_REQUEST['name'],
@@ -1121,6 +1206,7 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
     
       # Absorb a new pattern_template.
     
+      CheckIdentifier($_REQUEST['name']);
       $template = InsertTemplate([
         'name' => $_REQUEST['name'],
         'notes' => $_REQUEST['notes']

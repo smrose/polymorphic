@@ -35,6 +35,7 @@
  *  Error             die with message
  *  Alert             bold message
  *  CheckIdentifier   true if an identifier can be used in a MySQL table name
+ *  CheckFile         validate file upload
  */
  
 require 'db.php';
@@ -51,11 +52,12 @@ define('IMAGEROOT', 'images');
 define('MAXIMAGE', 8000000);
 define('IDEPTH', 1);
 define('GIWHITE', array('image/gif', 'image/jpeg', 'iage/png'));
+define('NOFILE', 4);
 define('UPERROR', array(
   1 => 'too large per system limit',
   2 => 'too large per application limit',
   3 => 'partial upload',
-  4 => 'no file selected'
+  NOFILE => 'no file selected'
 ));
 
 
@@ -138,7 +140,6 @@ function GetPatterns($which = null) {
  JOIN pattern_template pt ON p.ptid = pt.id
  LEFT JOIN pf_title pft ON p.id = pft.pid $q";
 
-  if(DEBUG) error_log($query);
   try {
     $sth = $pdo->prepare($query);
   } catch(PDOException $e) {
@@ -491,7 +492,7 @@ function DeleteTemplate($template_id) {
 /* GetPTFeatures()
  *
  *  Get pattern_feature records for a pattern_template. Those are returned
- *  in an associative array keyed on pattern_feature.id with fields
+ *  in an associative array keyed on pattern_feature.name with fields
  *  'id', 'name', 'type', and 'notes'.
  *
  */
@@ -518,7 +519,7 @@ function GetPTFeatures($template_id) {
   }
   $features = [];
   while($feature = $sth->fetch(PDO::FETCH_ASSOC))
-    $features[$feature['id']] = $feature;
+    $features[$feature['name']] = $feature;
   return $features;
 
 } /* end GetPTFeatures() */
@@ -650,7 +651,6 @@ function InsertFeature($params) {
   filename VARCHAR(255),
   alttext VARCHAR(1023) NOT NULL,
   hash CHAR(40) NOT NULL,
-  type VARCHAR(20) NOT NULL,
   language CHAR(2) NOT NULL DEFAULT 'en',
   created TIMESTAMP NOT NULL DEFAULT current_timestamp(),
   modified TIMESTAMP NOT NULL DEFAULT current_timestamp()
@@ -930,7 +930,8 @@ function InsertTemplate($params) {
 
 /* UpdatePattern()
  *
- *  Update a pattern. All we have is a 'notes' field.
+ *  Update a pattern. All we have is a 'notes' field. (Feature value updates
+ *  are handled elsewhere.)
  */
 
 function UpdatePattern($pid, $notes) {
@@ -961,23 +962,19 @@ function UpdatePattern($pid, $notes) {
 function UpdatePatternFeatures($pid, $updates, $inserts, $deletes) {
   global $pdo;
 
-  if(count($updates)) {
-    foreach($updates as $update)
-      UpdateFeatureValue($pid, $update['name'], $update['value']);
-  }
-  if(count($inserts)) {
+  if(count($updates))
+    foreach($updates as $update) {
+      $update['pid'] = $pid;
+      UpdateFeatureValue($update);
+    }
+  if(count($inserts))
     foreach($inserts as $insert) {
-      InsertFeatureValue([
-        'pid' => $pid,
-	'fname' => $insert['name'],
-	'value' => $insert['value']
-      ]);
+      $insert['pid'] = $pid;
+      InsertFeatureValue($insert);
     }
-  }
-  if(count($deletes)) {
-    foreach($deletes as $delete) {
-    }
-  }
+  if(count($deletes))
+    foreach($deletes as $delete)
+      Alert('Feature value deletion yet unimplemented');
   
 } /* end UpdatePatternFeatures() */
 
@@ -985,22 +982,45 @@ function UpdatePatternFeatures($pid, $updates, $inserts, $deletes) {
 /* UpdateFeatureValue()
  *
  *  Update the value of a pattern feature for this pattern.
+ *
+ *  The argument is an associative array with pattern.id as the value of
+ *  'pid', the feature name as the value of 'featurename', and the other
+ *  fields values for the named feature attributes.
  */
  
-function UpdateFeatureValue($pid, $name, $value) {
+function UpdateFeatureValue($update) {
   global $pdo;
 
-  $query = "UPDATE pf_{$name} SET value = ? WHERE pid = ?";
+  $assignments = '';
+  $vals = [];
+  foreach($update as $k => $v) {
+    if($k == 'pid')
+      $pid = $v;
+    else {
+      $assignments .= strlen($assignments) ? ',' : '';
+      if($k == 'featurename')
+        continue;
+      elseif($k == 'name')
+        $field = 'filename';
+      else
+        $field = $k;
+      $assignments .= "$field = ?";
+      $vals[] = $v;
+    }
+  }
+  $vals[] = $pid;
+  $query = "UPDATE pf_{$update['featurename']} SET $assignments WHERE pid = ?";
+
   try {
     $sth = $pdo->prepare($query);
   } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode(), "<br>$query";
     exit();
   }
   try {
-    $sth->execute([$value, $pid]);
+    $sth->execute($vals);
   } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode(), "<br>$query";
     exit();
   }
     
@@ -1013,10 +1033,11 @@ function UpdateFeatureValue($pid, $name, $value) {
  *
  *       pid  pattern.id
  *     fname  name of feature
- *     value  value of feature
+ *     value  value of feature (if not image)
+ *      hash  hash of upload (if image)
+ *   alttext  alternative text (if image)
+ *      name  source filename (if image)
  *
- *  For image types, we get the image data and metadata from $_FILES,
- *  except 'alttext', which is in 'value'.
  */
 
 function InsertFeatureValue($fv) {
@@ -1034,75 +1055,11 @@ function InsertFeatureValue($fv) {
 
   if($pf['type'] == 'image') {
 
-    // feature values of type 'image' require an upload and alternative text
-
-    $file = $_FILES[$fv['fname']];
-    if($file['error']) {
-
-      // something went wrong with the upload
-      
-      if(false)
-        Alert("Upload failed for <code>{$file['name']}</code>: " .
-          UPERROR[$file['error']] . "\n");
-      return false;
-    }
-    
-    if(!strlen($alttext = trim($fv['value'])))
-      Error(" {$fv['fname']}: alternative text is required for images");
-
-    if($file['size'] > MAXIMAGE) {
-
-      // file size is too large, which implies malevolent behavior
-      
-      Alert("File size of <code>{$file['size']}</code> exceeeds maximum supported size of " . MAXIMAGE . " for <code>{$file['fname']}</code>\n");
-      return false;
-    }
-
-    # use finfo() to get the actual (rather than asserted) MIME type
-    
-    if(false) {
-
-      // I have no idea why this doesn't work; postponing resolution.
-      
-      $finfo = finfo_opem(FILEINFO_MIME_TYPE); // fails mysteriously
-      $mime = finfo_file($finfo, $file['tmp_name']);
-      if(!in_array($mime, GIWHITE)) {
-
-	// unsupported file type
-
-	Alert("MIME type <code>$mime</code> of uploaded file <code>{$file['fname']}</code> isn't supported as an image");
-	return false;
-      }
-    } else {
-      $mime = $file['type'];
-    }
-    
-    // build a filename based on content (and build the dirtree as necessary)
-    
-    $hash = hash_file('sha1', $file['tmp_name']);
-    $spath = IMAGEROOT . '/';
-    for($i = 0; $i < IDEPTH; $i++) {
-      $spath .= substr($hash, $i, 1) . '/';
-      if(!is_dir($spath))
-        if(!mkdir($spath, 0755))
-	  Error('Failed to create directory tree for image upload');
-    }
-    $spath .= $hash;
-
-    // if this file has been uploaded before, silently move on
-    
-    if(!file_exists($spath)) {
-      if(!move_uploaded_file($file['tmp_name'], $spath)) {
-        Alert("Could not move uploaded file for {$file['fname']} to <code>$spath</code>\n");
-	return false;
-      }
-    }
-
     /* create a feature value record with the alttext, mime type, filename,
      * and hash */
 
-    $query = "INSERT INTO $tblname (pid, pfid, filename, alttext, hash, type)
-VALUES(?,?,?,?,?,?)";
+    $query = "INSERT INTO $tblname (pid, pfid, filename, alttext, hash)
+VALUES(?,?,?,?,?)";
     try {
       $sth = $pdo->prepare($query);
     } catch(PDOException $e) {
@@ -1111,18 +1068,17 @@ VALUES(?,?,?,?,?,?)";
     }
     try {
       $sth->execute([
-        $fv['pid'],
-        $pfid,
-        $file['name'],
-        $fv['value'],
-        $hash,
-        $mime
+	$fv['pid'],
+	$pfid,
+	$fv['name'],
+	$fv['alttext'],
+	$fv['hash']
       ]);
     } catch(PDOException $e) {
-      echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+      echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode(), '<br>', $query;
       exit();
     }
-    
+
   } else {
 
     // not an 'image' feature type
@@ -1254,13 +1210,81 @@ function Alert($alert) {
  */
 
 function CheckIdentifier($identifier) {
-  if(strlen($identifer) > 32) {
+  if(strlen($identifier) > 32) {
     Error("We accept names up to 32 characters long; <code>$identifier</code> is " .
-     strlen($identifer) . '.');
+     strlen($identifier) . '.');
   }
-  if(preg_match('/^[a-zA-Z0-9_]+$/', $identifer)) {
-    Error("We can't use the name <code>$identifier</code>.");
-  }
+  if(!preg_match('/^[a-zA-Z0-9_-]+$/', $identifier))
+    Error("We can't use the name <code>$identifier</code>. Use alphanumeric characters, <code>_</code>, or <code>-</code> only.");
+  if(substr($identifier, 0, 2) == 'f-')
+    Error('Leading <code>f-</code> on names is reserved.');
   return true;
   
 } /* end CheckIdentifier() */
+
+
+/* CheckFile()
+ *
+ *  Validate a file upload. The argument is from $_FILES[] with an added
+ *  'alttext' field. If all is well, we add a 'hash' field and return it,
+ *  else false.
+ */
+
+function CheckFile($file) {
+  if($file['error']) {
+
+    // something went wrong with the upload
+      
+    if(false)
+      Alert("Upload failed for <code>{$file['name']}</code>: " .
+        UPERROR[$file['error']] . "\n");
+    return false;
+  }
+  if(!strlen($file['alttext'])) {
+    Alert(" {$file['name']}: alternative text is required for images");
+    return false;
+  }
+
+  if($file['size'] > MAXIMAGE) {
+
+    // file size is too large, which implies malevolent behavior
+      
+    Alert("File size of <code>{$file['size']}</code> exceeeds maximum supported size of " . MAXIMAGE . " for <code>{$file['fname']}</code>\n");
+    return false;
+  }
+
+  # use finfo() to get the actual (rather than asserted) MIME type
+    
+  $finfo = finfo_open(FILEINFO_MIME_TYPE); // fails mysteriously
+  $mime = finfo_file($finfo, $file['tmp_name']);
+  if(!in_array($mime, GIWHITE)) {
+
+    // unsupported file type
+
+    Alert("MIME type <code>$mime</code> of uploaded file <code>{$file['fname']}</code> isn't supported as an image");
+    return false;
+  }
+    
+  // build a filename based on content (and build the dirtree as necessary)
+    
+  $file['hash'] = hash_file('sha1', $file['tmp_name']);
+  $spath = IMAGEROOT . '/';
+  for($i = 0; $i < IDEPTH; $i++) {
+    $spath .= substr($file['hash'], $i, 1) . '/';
+    if(!is_dir($spath))
+      if(!mkdir($spath, 0755))
+        Error('Failed to create directory tree for image upload');
+  }
+  $spath .= $file['hash'];
+
+  // if this file has been uploaded before, silently move on
+    
+  if(!file_exists($spath)) {
+    if(!move_uploaded_file($file['tmp_name'], $spath)) {
+      Alert("Could not move uploaded file for {$file['fname']} to <code>$spath</code>\n");
+      return false;
+    }
+  }
+  return $file;
+    
+} /* end CheckFile() */
