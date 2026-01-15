@@ -1,3 +1,4 @@
+sudo /bin/rm -rf /var/www/html/publicsphereproject/polymorphic/images/*
 mysql -e 'drop database if exists pps'
 mysql < pps-schema.sql
 mysql < pps-schema-lv-ps.sql
