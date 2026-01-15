@@ -492,8 +492,8 @@ function DeleteTemplate($template_id) {
 /* GetPTFeatures()
  *
  *  Get pattern_feature records for a pattern_template. Those are returned
- *  in an associative array keyed on pattern_feature.name with fields
- *  'id', 'name', 'type', and 'notes'.
+ *  in an associative array keyed on pattern_feature.name with all the fields
+ *  from pattern_feature.
  *
  */
 

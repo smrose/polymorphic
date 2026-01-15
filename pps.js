@@ -7,6 +7,9 @@ var template_id
 var metadata
 var features
 var tsel
+var mfa
+var mfaa
+var featuresel
 
 
 /* post()
@@ -68,6 +71,22 @@ function faformtypef() {
 } /* end faformtypef() */
 
 
+/* mfaformf()
+ *
+ *  Handle 'input' events on the feature-add popup on the template feature add
+ *  form.
+ *
+ *  We don't want to accept template feature additions if a feature hasn't
+ *  been selected.
+ */
+
+function mfaformf() {
+    submitState = featuresel.value != "0"
+    mfa.disabled = mfaa.disabled = !submitState
+    
+} /* end mfaformf() */
+
+
 /* stidf()
  *
  *  Handle 'input' events on the select-template popup. We don't want the
@@ -119,6 +138,8 @@ function init() {
     faformsubmit = document.querySelector('#faformsubmit')
     faformsubmit2 = document.querySelector('#faformsubmit2')
     selecttemplate = document.querySelector('#selecttemplate')
+    mfa = document.querySelector('#mfa')
+    mfaa = document.querySelector('#mfaa')
 
     if(selecttemplate) {
 	if(template_id = document.querySelector('#template_id'))
@@ -139,7 +160,12 @@ function init() {
 	faformname.addEventListener('input', faformtypef)
     if(faformtype || faformname)
         faformtypef()
-    
+
+    if(featuresel = document.querySelector('#featuresel')) {
+	featuresel.addEventListener('input', mfaformf)
+	mfaformf()
+    }
+
     if(ass = document.querySelector('#ass'))
 	ass.addEventListener('click', post)
     if(bum = document.querySelector('#bum'))

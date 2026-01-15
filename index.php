@@ -561,6 +561,7 @@ function TemplateForm($id = null) {
  </div>
 
  <div class=\"fsub\">
+  <input type=\"submit\" name=\"submit\" value=\"Accept and add features\">
   <input type=\"submit\" name=\"submit\" value=\"Accept\">
   $delete
   <input type=\"submit\" name=\"submit\" value=\"Cancel\">
@@ -640,12 +641,10 @@ function ManageFeatures($template_id) {
   $template = GetTemplate($template_id);
   if(!isset($template))
     Error('No such template.');
-    
-  $template['features'] = GetPTFeatures($template_id);
   $features = GetFeatures(['required' => 0]);
   $ufeatures = [];
   foreach($features as $feature) {
-    if(array_key_exists($feature['id'], $template['features']))
+    if(array_key_exists($feature['name'], $template['features']))
       continue;
     $ufeatures[] = $feature;
   }
@@ -653,7 +652,7 @@ function ManageFeatures($template_id) {
   
     # there is at least one feature not used by this template; offer to add
     
-    $fmenu = '<select name="feature_id">
+    $fmenu = '<select name="feature_id" id="featuresel">
  <option value="0">Select a feature to add</option>
 ';
     foreach($ufeatures as $ufeature) {
@@ -688,8 +687,8 @@ page to add that.)</p>
 <input type=\"hidden\" name=\"action\" value=\"addfeature\">
 <div style=\"text-align: center\">$fmenu</div>
 <div>
- <input type=\"submit\" name=\"submit\" value=\"Absorb\">
- <input type=\"submit\" name=\"submit\" value=\"" . ANOTHER . "\">
+ <input type=\"submit\" id=\"mfa\" name=\"submit\" value=\"Accept\">
+ <input type=\"submit\" id=\"mfaa\" name=\"submit\" value=\"" . ANOTHER . "\">
  <input type=\"submit\" name=\"submit\" value=\"Cancel\">
 </div>
 </form>
@@ -1212,6 +1211,9 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
         'notes' => $_REQUEST['notes']
       ]);
       Alert("Inserted template <i>{$template['name']}</i>, id <code>{$template['id']}</code>.");
+      if($_REQUEST['submit'] == 'Accept and add features')
+        ManageFeatures($template['id']);
+	$SuppressMain = true;
     }
   }
 } // end actions
