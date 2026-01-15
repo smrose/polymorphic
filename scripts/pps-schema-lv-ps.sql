@@ -147,20 +147,6 @@ CREATE TABLE IF NOT EXISTS pf_card (
   CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
 );
 --
--- 'pf_imagepath' is a pattern feature value table for 'image', type 'text'
---
-INSERT INTO pattern_feature (name, type) VALUES ('imagepath', 'string');
-CREATE TABLE IF NOT EXISTS pf_imagepath (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  pid INT UNSIGNED NOT NULL,
-  pfid INT UNSIGNED NOT NULL,
-  language CHAR(2) DEFAULT 'en',
-  value VARCHAR(255) NOT NULL,
-  PRIMARY KEY (id, language),
-  CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
-  CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
-);
---
 -- 'pf_synopsis' is a pattern feature value table for 'synopsis', type 'text'
 --
 INSERT INTO pattern_feature (name, type) VALUES ('synopsis', 'text');
