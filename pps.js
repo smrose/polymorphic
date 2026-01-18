@@ -60,11 +60,11 @@ function addFeature(event) {
 
 function faformtypef() {
     submitState = (faformtype.value != "0" || faformtype.disabled) &&
-	faformname.value.length > 0
+        faformname.value.length > 0
 
     accept.disabled = !submitState
     if(accepta)
-	accepta.disabled = !submitState
+        accepta.disabled = !submitState
     
 } /* end faformtypef() */
 
@@ -94,11 +94,25 @@ function mfaformf() {
 function stidf() {
     submitState = (template_id.value != "0")
     if(metadata)
-	metadata.disabled = features.disabled = ! submitState
+        metadata.disabled = features.disabled = ! submitState
     if(tsel)
-	tsel.disabled = ! submitState
+        tsel.disabled = ! submitState
 
 } /* end stidf()
+
+
+/* spidf()
+ *
+ *  Handle 'input' events on the select-pattern popup. We don't want the
+ *  submit button to be active unless a pattern has been selected.
+ */
+
+function spidf() {
+    submitState = (pattern_id.value != "0")
+    if(accept)
+        accept.disabled = ! submitState
+
+} /* end spidf()
 
 
 /* showi()
@@ -136,41 +150,48 @@ function init() {
     accept = document.querySelector('#accept')
     accepta = document.querySelector('#accepta')
     selecttemplate = document.querySelector('#selecttemplate')
+    selectpattern = document.querySelector('#selpat')
     accept = document.querySelector('#accept')
     accepta = document.querySelector('#accepta')
 
+    if(selectpattern) {
+	if(pattern_id = document.querySelector('#pattern_id')) {
+	    pattern_id.addEventListener('input', spidf)
+	    spidf()
+	}
+    }
     if(selecttemplate) {
-	if(template_id = document.querySelector('#template_id'))
-	    template_id.addEventListener('input', stidf)
-	metadata = document.querySelector('#metadata')
-	features = document.querySelector('#features')
-	tsel = document.querySelector('#tsel')
-	if(metadata || features || tsel)
-	    stidf()
+        if(template_id = document.querySelector('#template_id'))
+            template_id.addEventListener('input', stidf)
+        metadata = document.querySelector('#metadata')
+        features = document.querySelector('#features')
+        tsel = document.querySelector('#tsel')
+        if(metadata || features || tsel)
+            stidf()
     }
 
     /* Set and call 'input' event listeners on the 'type' and 'name'
      * fields in the feature add/edit page. */
 
     if(faformtype = document.querySelector('#faformtype'))
-	faformtype.addEventListener('input', faformtypef)
+        faformtype.addEventListener('input', faformtypef)
     if(faformname = document.querySelector('#faformname'))
-	faformname.addEventListener('input', faformtypef)
+        faformname.addEventListener('input', faformtypef)
     if(faformtype || faformname)
         faformtypef()
 
     if(featuresel = document.querySelector('#featuresel')) {
-	featuresel.addEventListener('input', mfaformf)
-	mfaformf()
+        featuresel.addEventListener('input', mfaformf)
+        mfaformf()
     }
 
     if(ass = document.querySelector('#ass'))
-	ass.addEventListener('click', post)
+        ass.addEventListener('click', post)
     if(bum = document.querySelector('#bum'))
-	bum.addEventListener('click', files)
+        bum.addEventListener('click', files)
     arow = document.querySelector('#arow')
     if(fform = document.querySelector('#addfeature'))
-	abutton.addEventListener('click', addFeature)
+        abutton.addEventListener('click', addFeature)
 
     // Set focus and blur event listeners on elements with class 'ilink'.
 

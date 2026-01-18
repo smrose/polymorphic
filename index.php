@@ -598,7 +598,7 @@ function SelectPattern($template_id = null) {
     $patterns = GetPatterns(['ptid' => $template_id]);
     if(!count($patterns))
       Error('No patterns found for this tempate');
-    $selpattern = '<select name="pattern_id">
+    $selpattern = '<select name="pattern_id" id="pattern_id">
  <option value="0">Select a pattern</option>
 ';
     foreach($patterns as $pattern) {
@@ -610,13 +610,13 @@ function SelectPattern($template_id = null) {
 ';
     print "<h2>Select a Pattern</h2>
 
-<form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\">
+<form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\" id=\"selpat\">
 <input type=\"hidden\" name=\"pattern\" value=\"edit\">
 
 <div class=\"fname\">Select a pattern:</div>
 <div>$selpattern</div>
 <div class=\"fsub\">
- <input type=\"submit\" name=\"submit\" value=\"Edit\">
+ <input type=\"submit\" id=\"accept\" name=\"submit\" value=\"Edit\">
  <input type=\"submit\" name=\"submit\" value=\"Cancel\">
 </div>
 </form>
@@ -636,7 +636,8 @@ template. Filter the pattern selection menu to those of a particular template, o
       'action' => 'edit',
       'submit' => [
         [
-          'label' => 'Select'
+          'label' => 'Select',
+	  'id' => 'tsel'
         ]
       ]
     ]);
