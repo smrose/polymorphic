@@ -1,5 +1,3 @@
-var faformsubmit
-var faformsubmit2
 var faformtype
 var faformname
 var selecttemplate
@@ -7,8 +5,8 @@ var template_id
 var metadata
 var features
 var tsel
-var mfa
-var mfaa
+var accept
+var accepta
 var featuresel
 
 
@@ -64,9 +62,9 @@ function faformtypef() {
     submitState = (faformtype.value != "0" || faformtype.disabled) &&
 	faformname.value.length > 0
 
-    faformsubmit.disabled = !submitState
-    if(faformsubmit2)
-	faformsubmit2.disabled = !submitState
+    accept.disabled = !submitState
+    if(accepta)
+	accepta.disabled = !submitState
     
 } /* end faformtypef() */
 
@@ -82,7 +80,7 @@ function faformtypef() {
 
 function mfaformf() {
     submitState = featuresel.value != "0"
-    mfa.disabled = mfaa.disabled = !submitState
+    accept.disabled = accepta.disabled = !submitState
     
 } /* end mfaformf() */
 
@@ -135,11 +133,11 @@ function hidei(event) {
  */
 
 function init() {
-    faformsubmit = document.querySelector('#faformsubmit')
-    faformsubmit2 = document.querySelector('#faformsubmit2')
+    accept = document.querySelector('#accept')
+    accepta = document.querySelector('#accepta')
     selecttemplate = document.querySelector('#selecttemplate')
-    mfa = document.querySelector('#mfa')
-    mfaa = document.querySelector('#mfaa')
+    accept = document.querySelector('#accept')
+    accepta = document.querySelector('#accepta')
 
     if(selecttemplate) {
 	if(template_id = document.querySelector('#template_id'))

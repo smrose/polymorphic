@@ -173,6 +173,13 @@ input[type=submit]:disabled {
 .ilink:hover {
     background-color: #fcc;
 }
+.rbox {
+    font-family: monospace;
+    font-weight: bold;
+}
+.rbox:hover {
+    background-color: #fcc;
+}
 .imagebox {
     position: fixed;
     right: 2vw;

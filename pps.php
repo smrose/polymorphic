@@ -29,6 +29,7 @@
  *  InsertTemplate    insert a pattern_template
  *  UpdatePattern     update a pattern
  *  UpdatePatternFeatures update features for a pattern
+ *  DeleteFeatureValue delete this feature value
  *  UpdateFeatureValue update one feature value
  *  InsertFeatureValue insert a feature value
  *  FeatureStats      return stats of use of a pattern_feature
@@ -36,17 +37,23 @@
  *  Alert             bold message
  *  CheckIdentifier   true if an identifier can be used in a MySQL table name
  *  CheckFile         validate file upload
+ *  IsImageUsed       true if an image is referenced in a feature value
+ *  DeleteImage       delete the file specified by its hash
+ *  ImagePath         return the file system path to an uploaded file
  */
  
 require 'db.php';
 
 define('FOOT', '<div id="foot"><a href="https://www.publicsphereproject.org/">Public Sphere Project</a></div>');
 define('DEBUG', true);
+
+# TYPE is a catalog of human-readable feature types => database types
+
 define('TYPE', array(
-  'string' => 'varchar(255)',
-  'text' => 'mediumtext',
+  'image' => 'mediumblob',
   'integer' => 'integer',
-  'image' => 'mediumblob'
+  'string' => 'varchar(255)',
+  'text' => 'mediumtext'
   ));
 define('IMAGEROOT', 'images');
 define('MAXIMAGE', 8000000);
@@ -74,7 +81,8 @@ function DataStoreConnect() {
 
   try {
     $pdo = new PDO(DSN, USER, PW);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    //$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
@@ -152,7 +160,7 @@ function GetPatterns($which = null) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
   }
   $patterns = [];
-  while($pattern = $sth->fetch(PDO::FETCH_ASSOC)) {
+  while($pattern = $sth->fetch()) {
     $patterns[$pattern['id']] = $pattern;
   }
   return $patterns ? $patterns : null;
@@ -187,7 +195,7 @@ function GetPattern($id) {
     echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
     exit();
   }
-  $pattern = $sth->fetch(PDO::FETCH_ASSOC);
+  $pattern = $sth->fetch();
 
   if(!$pattern)
     return false;
@@ -211,7 +219,7 @@ function GetPattern($id) {
     exit();
   }
   $features = [];
-  while($feature = $sth->fetch(PDO::FETCH_ASSOC))
+  while($feature = $sth->fetch())
     $features[$feature['name']] = $feature;
     
   # Fetch all the feature values from their per-feature tables.
@@ -230,7 +238,7 @@ function GetPattern($id) {
       echo __FILE__, ' ', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
       exit();
     }
-    if($v = $sth->fetch(PDO::FETCH_ASSOC)) {
+    if($v = $sth->fetch()) {
 
       // found a feature value
       
@@ -323,7 +331,7 @@ function GetTemplates($which = null) {
     exit();
   }
   $templates = [];
-  while($template = $sth->fetch(PDO::FETCH_ASSOC))
+  while($template = $sth->fetch())
     $templates[$template['id']] = $template;
 
   # Update the 'pcount' fields.
@@ -345,7 +353,7 @@ function GetTemplates($which = null) {
     echo __FILE__, ':',  __LINE__, ' ', $e->getMessage(), ' ', $e->getCode();
     exit();
   }
-  while($count = $sth->fetch(PDO::FETCH_ASSOC))
+  while($count = $sth->fetch())
     $templates[$count['tid']]['pcount'] = $count['pcount'];
 
   # Update the 'fcount' fields.
@@ -366,7 +374,7 @@ function GetTemplates($which = null) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', $e->getCode();
     exit();
   }
-  while($count = $sth->fetch(PDO::FETCH_ASSOC))
+  while($count = $sth->fetch())
     $templates[$count['tid']]['fcount'] = $count['fcount'];
     
   return $templates;
@@ -397,7 +405,7 @@ function GetTemplate($id) {
     exit();
   }
   $template['features'] = [];
-  if($template = $sth->fetch(PDO::FETCH_ASSOC))
+  if($template = $sth->fetch())
     $template['features'] = GetPTFeatures($id);
 
   return $template ? $template : null;
@@ -518,7 +526,7 @@ function GetPTFeatures($template_id) {
     exit();
   }
   $features = [];
-  while($feature = $sth->fetch(PDO::FETCH_ASSOC))
+  while($feature = $sth->fetch())
     $features[$feature['name']] = $feature;
   return $features;
 
@@ -573,7 +581,6 @@ function GetFeatures($which = null) {
     $u = [];
   }
   $query = "SELECT * FROM pattern_feature pf $q";
-  if(DEBUG) error_log($query);
   try {
     $sth = $pdo->prepare($query);
   } catch(PDOException $e) {
@@ -586,7 +593,7 @@ function GetFeatures($which = null) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
-  $features = $sth->fetchall(PDO::FETCH_ASSOC);
+  $features = $sth->fetchall();
   return count($features) ? $features : null;
 
 } /* end GetFeatures() */
@@ -626,7 +633,6 @@ function InsertFeature($params) {
     Error("There is already a feature with name \"{$params['name']}\" and there cannot be two.");
 
   $sql = 'INSERT INTO pattern_feature(name, type, notes) VALUES(?,?,?)';
-  if(DEBUG) error_log($sql);
   try {
     $sth = $pdo->prepare($sql);
   } catch(PDOException $e) {
@@ -634,7 +640,7 @@ function InsertFeature($params) {
     exit();
   }
   try {
-    $rv = $sth->execute([$params['name'], $params['type'], $params['notes']]);
+    $rv = $sth->execute([$params['name'], $params['alias'], $params['notes']]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
@@ -643,7 +649,7 @@ function InsertFeature($params) {
 
   # Create a table to hold the values.
 
-  if($params['type'] == 'image') {
+  if($params['alias'] == 'image') {
     $sql = "CREATE TABLE pf_{$params['name']} (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   pid INT UNSIGNED NOT NULL,
@@ -737,7 +743,7 @@ function GetTemplateFeature($id) {
     echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
     exit();
   }
-  $pt = $sth->fetch(PDO::FETCH_ASSOC);
+  $pt = $sth->fetch();
 
   if(!$pt)
     return false;
@@ -904,7 +910,6 @@ function InsertTemplate($params) {
     Error("There is already a template with name \"{$params['name']}\" and there cannot be two.");
 
   $sql = 'INSERT INTO pattern_template(name, notes) VALUES(:name, :notes)';
-  if(DEBUG) error_log($sql);
   try {
     $sth = $pdo->prepare($sql);
   } catch(PDOException $e) {
@@ -956,11 +961,10 @@ function UpdatePattern($pid, $notes) {
 
 /* UpdatePatternFeatures()
  *
- *  Update features for this pattern.
+ *  Update features for this pattern specified by pattern.id.
  */
 
 function UpdatePatternFeatures($pid, $updates, $inserts, $deletes) {
-  global $pdo;
 
   if(count($updates))
     foreach($updates as $update) {
@@ -973,10 +977,51 @@ function UpdatePatternFeatures($pid, $updates, $inserts, $deletes) {
       InsertFeatureValue($insert);
     }
   if(count($deletes))
-    foreach($deletes as $delete)
-      Alert('Feature value deletion yet unimplemented');
+    foreach($deletes as $delete) {
+      $delete['pid'] = $pid;
+      DeleteFeatureValue($delete);
+    }
   
 } /* end UpdatePatternFeatures() */
+
+
+/* DeleteFeatureValue()
+ *
+ *  Delete a feature value.
+ */
+
+function DeleteFeatureValue($fvalue) {
+  global $pdo;
+  
+  $name = $fvalue['name'];
+  $tablename = "pf_$name";
+
+  try {
+    $sth = $pdo->prepare("DELETE FROM $tablename WHERE pid = ? AND pfid = ?");
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
+  }
+  try {
+    $sth->execute([$fvalue['pid'], $fvalue['id']]);
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
+  }
+  if(! $sth->rowCount())
+    Alert('No row deleted!');
+
+  if($fvalue['type'] == 'image') {
+
+    # Images are a special case, as there is an associated file in the
+    # file system. Furthermore, that file may be referenced by other feature
+    # values. Delete iff this is the sole reference.
+
+    if(!IsImageUsed($fvalue['hash']))
+      DeleteImage($fvalue['hash']);
+   }
+
+} /* end DeleteFeatureValue() */
 
 
 /* UpdateFeatureValue()
@@ -1141,7 +1186,7 @@ function FeatureStats($feature_id) {
     exit();
   }
   $templates = [];
-  while($template = $sth->fetch(PDO::FETCH_ASSOC)) {
+  while($template = $sth->fetch()) {
     $templates[$template['id']] = $template;
     $templates[$template['id']]['count'] = 0;
   }
@@ -1170,7 +1215,7 @@ function FeatureStats($feature_id) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
-  while($template = $sth->fetch(PDO::FETCH_ASSOC))
+  while($template = $sth->fetch())
     $templates[$template['id']]['count'] = $template['count'];
 
   return $templates;
@@ -1268,14 +1313,7 @@ function CheckFile($file) {
   // build a filename based on content (and build the dirtree as necessary)
     
   $file['hash'] = hash_file('sha1', $file['tmp_name']);
-  $spath = IMAGEROOT . '/';
-  for($i = 0; $i < IDEPTH; $i++) {
-    $spath .= substr($file['hash'], $i, 1) . '/';
-    if(!is_dir($spath))
-      if(!mkdir($spath, 0755))
-        Error('Failed to create directory tree for image upload');
-  }
-  $spath .= $file['hash'];
+  $spath = ImagePath($file['hash']);
 
   // if this file has been uploaded before, silently move on
     
@@ -1288,3 +1326,67 @@ function CheckFile($file) {
   return $file;
     
 } /* end CheckFile() */
+
+
+/* IsImageUsed()
+ *
+ *  True if an image is referenced by any feature value.
+ */
+
+function IsImageUsed($hash) {
+  global $pdo;
+
+  # Get the feature names that are of type "image."
+
+  $sth = $pdo->prepare('SELECT name FROM pattern_feature WHERE type = "image"');
+  $sth->execute();
+  $names = $sth->fetchall();
+
+  # Search those tables for any reference to this image.
+
+  foreach ($names as $name) {
+    $tblname = "pf_{$name['name']}";
+    $query = "SELECT count(*) AS count FROM $tblname WHERE hash = ?";
+    $sth = $pdo->prepare($query);
+    $sth->execute([$hash]);
+    $count = $sth->fetchcolumn();
+    if($count)
+      return true;
+  }
+  return false;
+  
+} /* end IsImageUsed() */
+
+
+/* DeleteImage()
+ *
+ *  Delete this image, specified by hash. Return false if we didn't find it
+ *  or failed to unlink it.
+ */
+ 
+function DeleteImage($hash) {
+  if(! file_exists($imagePath = ImagePath($hash)))
+    return false;
+  else
+    return unlink($imagePath);
+
+} /* end DeleteImage() */
+
+
+/* ImagePath()
+ *
+ *  Given a file hash, return the file system path, creating subdirs as needed.
+ */
+
+function ImagePath($hash) {
+  $spath = IMAGEROOT . '/';
+  for($i = 0; $i < IDEPTH; $i++) {
+    $spath .= substr($hash, $i, 1) . '/';
+    if(!is_dir($spath))
+      if(!mkdir($spath, 0775))
+        Error('Failed to create directory tree for file upload');
+  }
+  $spath .= $hash;
+  return $spath;
+  
+} /* end ImagePath() */
