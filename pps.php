@@ -14,6 +14,7 @@
  *  GetPatterns       fetch pattern records
  *  GetPattern        fetch a pattern with its features
  *  InsertPattern     insert a pattern record
+ *  GetPLs            fetch pattern_language records
  *  GetTemplates      fetch pattern_template records
  *  GetTemplate       fetch pattern_template record with its features
  *  UpdateTemplate    update pattern_template record
@@ -27,6 +28,11 @@
  *  UpdateFeature     apply pattern_feature update
  *  DeleteFeature     delete this feature, its table, and references to it
  *  InsertTemplate    insert a pattern_template
+ *  InsertPL          insert a pattern_language
+ *  GetPLMembers      get plmember records
+ *  UpdatePLMembers   members come, members go - it is what it is
+ *  InsertPLMember    insert a plmember record
+ *  DeletePLMember    delete a plmember record
  *  UpdatePattern     update a pattern
  *  UpdatePatternFeatures update features for a pattern
  *  DeleteFeatureValue delete this feature value
@@ -121,27 +127,22 @@ function CountPatterns($ptid) {
 
 /* GetPatterns()
  *
- *  Fetch patterns - all or selected.
+ *  Fetch patterns - all or selected - ordered by 'id'.
  */
 
 function GetPatterns($which = null) {
   global $pdo;
 
-  if(isset($which)) {
-    if(is_array($which)) {
-      $q = '';
-      $u = [];
-      foreach($which as $column => $value) {
-        if(strlen($q))
-	  $q .= ' AND ';
-        $q .= " $column = ?";
-	$u[] = $value;
-      }
-      $q = "WHERE $q";
+  $q = '';
+  $u = [];
+  if(isset($which) && is_array($which) && count($which)) {
+    foreach($which as $column => $value) {
+      if(strlen($q))
+        $q .= ' AND ';
+      $q .= " $column = ?";
+      $u[] = $value;
     }
-  } else {
-    $q = '';
-    $u = [];
+    $q = "WHERE $q";
   }
 
   $query = "SELECT p.*, pt.name AS ptname, pft.value AS title FROM pattern p
@@ -160,9 +161,9 @@ function GetPatterns($which = null) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
   }
   $patterns = [];
-  while($pattern = $sth->fetch()) {
+  while($pattern = $sth->fetch())
     $patterns[$pattern['id']] = $pattern;
-  }
+
   return $patterns ? $patterns : null;
   
 } /* end GetPatterns() */
@@ -288,6 +289,105 @@ function InsertPattern($notes, $template_id) {
   return GetPattern($pdo->lastInsertId());
 
 } /* end InsertPattern() */
+
+
+/* DeletePL()
+ *
+ *  Delete a pattern_language record.
+ */
+
+function DeletePL($id) {
+  global $pdo;
+  
+  Error('Not implemented');
+} /* end DeletePL() */
+
+
+/* UpdatePL()
+ *
+ *  Update a pattern_language record.
+ */
+ 
+function UpdatePL($update) {
+  global $pdo;
+  
+  $pl = GetPL($update['id']);
+  $q = '';
+  $u = [];
+  foreach($update as $k => $v) {
+    if($k == 'id' || $pl[$k] == $v)
+      continue;
+    if(strlen($q))
+      $q .= ',';
+    $q .= "$k = :$k";
+    $u[$k] = $v;
+  }
+  if(count($u)) {
+    $u['id'] = $update['id'];
+    $sql = "UPDATE pattern_language SET $q WHERE id = :id";
+    $sth = $pdo->prepare($sql);
+    $sth->execute($u);
+    return $update;
+  }
+  return false;
+  
+} /* end UpdatePL() */
+
+
+/* GetPL()
+ *
+ *  Return the pattern_language record with the argument id.
+ */
+ 
+function GetPL($id) {
+  $pls = GetPLs(['id' => $id]);
+  return count($pls) ? $pls[$id] : false;
+  
+} /* end GetPL() */
+
+
+/* GetPLs()
+ *
+ *  Return the selected pattern_language records.
+ */
+
+function GetPLs($which = null) {
+  global $pdo;
+
+  if(isset($which)) {
+    $q = '';
+    $u = [];
+    foreach($which as $column => $value) {
+      if(strlen($q))
+        $q .= ' AND ';
+      $q .= " $column = ?";
+      $u[] = $value;
+    }
+    $q = "WHERE $q";
+  } else {
+    $q = '';
+    $u = [];
+  }
+  $query = "SELECT * FROM pattern_language $q";
+  try {
+    $sth = $pdo->prepare($query);
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
+  }
+  try {
+    $rv = $sth->execute($u);
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', $e->getCode();
+    exit();
+  }
+  $pls = [];
+  while($pl = $sth->fetch())
+    $pls[$pl['id']] = $pl;
+  return $pls;
+
+} /* end GetPLs() */
 
 
 /* GetTemplates()
@@ -933,6 +1033,138 @@ function InsertTemplate($params) {
 } /* end InsertTemplate() */
 
 
+/* InsertPL()
+ *
+ *  Insert a pattern_language.
+ */
+
+function InsertPL($params) {
+  global $pdo;
+
+  $params['name'] = trim($params['name']);
+  if(!strlen($params['name']))
+    Error('Name of language may not be empty.');
+  if(GetPL(['name' => $params['name']]))
+    Error("There is already a pattern language with name \"{$params['name']}\" and there cannot be two.");
+
+  $sql = 'INSERT INTO pattern_language(name, notes, ptid)
+ VALUES(:name, :notes, :ptid)';
+  try {
+    $sth = $pdo->prepare($sql);
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
+  }
+  try {
+    $rv = $sth->execute($params);
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
+  }
+  $params['id'] = $pdo->lastInsertId();
+  return $params;
+  
+} /* end InsertPL() */
+
+
+/* GetPLMembers()
+ *
+ *  Get matching plmember records ordered by pid.
+ */
+
+function GetPLMembers($which) {
+  global $pdo;
+
+  $q = '';
+  $u = [];
+  if(is_array($which) && count($which)) {
+    foreach($which as $k => $v) {
+      if(strlen($q))
+        $q .= ' AND ';
+      $q .= " $k = ?";
+      $u[] = $v;
+    }
+  }
+  $query = 'SELECT * FROM plmember' .
+    (strlen($q) ? " WHERE $q" : '');
+
+  $sth = $pdo->prepare($query);
+  $sth->execute($u);
+  $plms = [];
+  while($plm = $sth->fetch())
+    $plms[$plm['pid']] = $plm;
+  return $plms;
+  
+} /* end GetPLMembers() */
+
+
+/* UpdatePLMembers()
+ *
+ *  Marshall plmember INSERTs and DELETEs.
+ */
+
+function UpdatePLMembers($plid, $inserts, $deletes) {
+  $stats = [
+    'inserts' => 0,
+    'deletes' => 0
+  ];
+  $stats['inserts'] = InsertPLMember($plid, $inserts);
+  $stats['deletes'] = DeletePLMember($plid, $deletes);
+  return $stats;
+  
+} /* end UpdatePLMembers() */
+
+
+/* InsertPLMember()
+ *
+ *  Insert a plmember record or records.
+ */
+
+function InsertPLMember($plid, $pid) {
+  global $pdo;
+  $count = 0;
+
+  $q = 'INSERT INTO plmember (pid, plid) VALUES (?, ?)';
+  $sth = $pdo->prepare($q);
+  if(is_array($pid)) {
+    foreach($pid as $v)
+      if($sth->execute([$v, $plid]))
+        if($sth->rowCount())
+          $count++;
+  } else
+   if($sth->execute([$v, $plid]))
+     if($sth->rowCount())
+       $count++;
+  return $count;
+  
+} /* end InsertPLMember() */
+
+
+/* DeletePLMember()
+ *
+ *  Delete plmember record or records.
+ */
+
+function DeletePLMember($plid, $pid) {
+  global $pdo;
+
+  $count = 0;
+  $q = "DELETE FROM plmember WHERE pid = ? AND $plid = ?";
+  $sth = $pdo->prepare($q);
+  if(is_array($pid)) {
+    foreach($pid as $v)
+      if($sth->execute([$v, $plid]))
+        if($sth->rowCount())
+          $count++;
+  } else
+    if($sth->execute([$v, $plid]))
+      if($sth->rowCount())
+        $count++;
+  return $count;
+
+} /* end DeletePLMember() */
+
+
 /* UpdatePattern()
  *
  *  Update a pattern. All we have is a 'notes' field. (Feature value updates
@@ -1240,11 +1472,14 @@ function Error($msg) {
 
 /* Alert()
  *
- *  Bold informative message.
+ *  Bold informative message, print() by default.
  */
 
-function Alert($alert) {
-  print "<p class=\"alert\">$alert</p>\n";
+function Alert($alert, $print = true) {
+  $m = "<p class=\"alert\">$alert</p>";
+  if($print)
+    print $m;
+  return $m;
 
 } /* end Alert() */
 
@@ -1254,15 +1489,18 @@ function Alert($alert) {
  *  Check that this identifier can be used in a MySQL table name.
  */
 
-function CheckIdentifier($identifier) {
+function CheckIdentifier($identifier, $white = false) {
+  $preg = $white ? '/^[ a-zA-Z0-9_-]+$/' : '/^[a-zA-Z0-9_-]+$/';
   if(strlen($identifier) > 32) {
     Error("We accept names up to 32 characters long; <code>$identifier</code> is " .
      strlen($identifier) . '.');
   }
-  if(!preg_match('/^[a-zA-Z0-9_-]+$/', $identifier))
-    Error("We can't use the name <code>$identifier</code>. Use alphanumeric characters, <code>_</code>, or <code>-</code> only.");
-  if(substr($identifier, 0, 2) == 'f-')
-    Error('Leading <code>f-</code> on names is reserved.');
+  if(!preg_match($preg, $identifier)) {
+    Error("We can't use the name <code>$identifier</code>. Use alphanumeric characters, " .
+      ($white ? 'spaces, ' : '') . '<code>_</code>, or <code>-</code> only.');
+  }
+  if(preg_match('/^[df]-/', $identifier, $matches))
+    Error("Leading <code>{$matches[0]}</code> on names is reserved.");
   return true;
   
 } /* end CheckIdentifier() */

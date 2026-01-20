@@ -43,7 +43,7 @@ INSERT INTO pattern_template (name) VALUES ('Liberating Voices');
 --
 -- create pattern language
 --
-INSERT INTO pattern_language (name) VALUES ('Liberating Voices');
+INSERT INTO pattern_language (name, ptid) VALUES ('Liberating Voices', 1);
 --
 -- pattern_view
 --

@@ -21,6 +21,13 @@
 #   CONSTRAINT FOREIGN KEY (ptid) REFERENCES pattern_template(id)
 #  );
 #
+#  CREATE TABLE plmember (
+#   pid integer unsigned NOT NULL,
+#   plid integer unsigned NOT NULL,
+#   FOREIGN KEY (pid) REFERENCES pattern(id),
+#   FOREIGN KEY (plid) REFERENCES pattern_language(id)
+#  );
+#
 # $Id: pps-patterns-lv-ps.pl,v 1.2 2025/12/16 00:16:51 rose Exp $
 
 use strict;
@@ -28,15 +35,17 @@ use DBI;
 use Readonly;
 use Try::Tiny;
 
-our($dbh, $sth, $patterns, $pattern_template, $pattern_features, @pf);
+our($dbh, $sth, $patterns, $pattern_template, $pattern_language,
+    $pattern_features, @pf);
 
 
 # pinsert()
 #
-#  Insert one pattern into pps.
+#  Insert one pattern into pps: a row in 'pattern', a row in 'plmember',
+#  and a row in each feature value table.
 #
-#  pattern_features have been established, and tables for all the columns have been
-#  created.
+#  pattern_features have been established, and tables for all the columns
+#  have been created.
 
 sub pinsert {
     my $pattern = $_[0];
@@ -48,6 +57,11 @@ sub pinsert {
     $dbh->do("INSERT INTO pattern (ptid) VALUES ($pattern_template)")
 	or die 'insert pattern';
     my $pid = $dbh->{mysql_insertid};
+
+    # create the plmember record
+
+    $dbh->do("INSERT INTO plmember(pid, plid) VALUES ($pid, $pattern_language)")
+	or die 'insert plmember';
 
     # create the features
     
@@ -85,6 +99,13 @@ $dbh = DBI->connect('dbi:mysql:database=pps', 'pps', 'Pa++3rn 5ph3r3')
 
 $pattern_template = $dbh->selectcol_arrayref('SELECT id FROM pattern_template');
 $pattern_template = $pattern_template->[0];
+
+# Get the pattern_language id.
+
+$pattern_language = $dbh->selectcol_arrayref('SELECT id FROM pattern_language');
+$pattern_language = $pattern_language->[0];
+
+# Get the pattern features.
 
 $pattern_features = $dbh->selectall_hashref('SELECT * FROM pattern_feature', 'id')
     or die 'selectall pps.pattern_feature';

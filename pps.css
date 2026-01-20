@@ -86,6 +86,13 @@ div.booty {
     text-align: center;
     font-weight: bold;
 }
+.antifa {
+    text-align: right;
+    font-style: oblique;
+}
+.centrist {
+    text-align: center;
+}
 .required {
     font-weight: bold;
     color: #900;

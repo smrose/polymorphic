@@ -23,19 +23,19 @@ FLUSH PRIVILEGES;
 -- create pattern_template
 --
 CREATE TABLE IF NOT EXISTS pattern_template (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(255) NOT NULL UNIQUE,
-  notes VARCHAR(16383) DEFAULT NULL
+  id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name varchar(255) NOT NULL UNIQUE,
+  notes varchar(16383) DEFAULT NULL
 );
 --
 -- 'pattern'
 --
 CREATE TABLE IF NOT EXISTS pattern (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  ptid INT UNSIGNED NOT NULL,
-  notes VARCHAR(16383),
-  created TIMESTAMP NOT NULL DEFAULT current_timestamp(),
-  modified TIMESTAMP NOT NULL DEFAULT current_timestamp()
+  id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  ptid int unsigned NOT NULL,
+  notes varchar(16383),
+  created timestamp NOT NULL DEFAULT current_timestamp(),
+  modified timestamp NOT NULL DEFAULT current_timestamp()
    ON UPDATE current_timestamp(),
   CONSTRAINT FOREIGN KEY (ptid) REFERENCES pattern_template(id)
    ON DELETE CASCADE
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS pattern (
 --
 CREATE TABLE IF NOT EXISTS language (
   code CHAR(2) NOT NULL,
-  description VARCHAR(255) NOT NULL,
+  description varchar(255) NOT NULL,
   PRIMARY KEY (code)
 );
 INSERT INTO language(code, description) VALUES('en', 'US English');
@@ -54,10 +54,10 @@ INSERT INTO language(code, description) VALUES('en', 'US English');
 --
 CREATE TABLE IF NOT EXISTS pattern_note (
   note TINYTEXT NOT NULL,
-  pid INT UNSIGNED NOT NULL,
+  pid int unsigned NOT NULL,
   language CHAR(2) NOT NULL DEFAULT 'en',
-  created TIMESTAMP NOT NULL DEFAULT current_timestamp(),
-  modified TIMESTAMP NOT NULL DEFAULT current_timestamp()
+  created timestamp NOT NULL DEFAULT current_timestamp(),
+  modified timestamp NOT NULL DEFAULT current_timestamp()
    ON UPDATE current_timestamp(),
   CONSTRAINT FOREIGN KEY(language) REFERENCES language(code),
   CONSTRAINT FOREIGN KEY(pid) REFERENCES pattern(id)
@@ -66,12 +66,14 @@ CREATE TABLE IF NOT EXISTS pattern_note (
 -- 'pattern_language' defines a named collection of patterns
 --
 CREATE TABLE IF NOT EXISTS pattern_language (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  notes VARCHAR(16383),
-  created TIMESTAMP NOT NULL DEFAULT current_timestamp(),
-  modified TIMESTAMP NOT NULL DEFAULT current_timestamp()
-   ON UPDATE current_timestamp()
+  id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  ptid int unsigned NOT NULL,
+  name varchar(255) NOT NULL UNIQUE,
+  notes varchar(16383),
+  created timestamp NOT NULL DEFAULT current_timestamp(),
+  modified timestamp NOT NULL DEFAULT current_timestamp()
+   ON UPDATE current_timestamp(),
+  CONSTRAINT FOREIGN KEY(ptid) REFERENCES pattern_template(id)
 );
 --
 -- 'pattern_feature' defines a feature, which has an id, name, data
@@ -80,24 +82,24 @@ CREATE TABLE IF NOT EXISTS pattern_language (
 -- created when a 'pattern_feature' is added.
 --
 CREATE TABLE IF NOT EXISTS pattern_feature (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(255) NOT NULL UNIQUE,
-  type ENUM('string', 'text', 'image', 'integer'),
+  id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name varchar(255) NOT NULL UNIQUE,
+  type enum('string', 'text', 'image', 'integer'),
   required tinyint(1) DEFAULT 0,
-  notes VARCHAR(16383) DEFAULT NULL,
-  created TIMESTAMP NOT NULL DEFAULT current_timestamp(),
-  modified TIMESTAMP NOT NULL DEFAULT current_timestamp()
+  notes varchar(16383) DEFAULT NULL,
+  created timestamp NOT NULL DEFAULT current_timestamp(),
+  modified timestamp NOT NULL DEFAULT current_timestamp()
    ON UPDATE current_timestamp()
 );
 --
 -- pt_feature associates features with a template
 --
  CREATE TABLE IF NOT EXISTS pt_feature (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  ptid INT UNSIGNED NOT NULL,
-  fid INT UNSIGNED NOT NULL,
-  created TIMESTAMP NOT NULL DEFAULT current_timestamp(),
-  modified TIMESTAMP NOT NULL DEFAULT current_timestamp()
+  id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  ptid int unsigned NOT NULL,
+  fid int unsigned NOT NULL,
+  created timestamp NOT NULL DEFAULT current_timestamp(),
+  modified timestamp NOT NULL DEFAULT current_timestamp()
    ON UPDATE current_timestamp(),
   CONSTRAINT UNIQUE (ptid, fid),
   CONSTRAINT FOREIGN KEY(ptid) REFERENCES pattern_template(id)
@@ -106,25 +108,35 @@ CREATE TABLE IF NOT EXISTS pattern_feature (
    ON DELETE CASCADE
  );
 --
+-- 'plmember' links patterns to a language
+--
+CREATE TABLE IF NOT EXISTS plmember (
+  pid int unsigned NOT NULL,
+  plid int unsigned NOT NULL,
+  CONSTRAINT UNIQUE(plid, pid),
+  FOREIGN KEY (pid) REFERENCES pattern(id),
+  FOREIGN KEY (plid) REFERENCES pattern_language(id)
+);
+--
 -- 'pattern_view' describes how pattern features are displayed in a context.
 --
 CREATE TABLE IF NOT EXISTS pattern_view (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
   name varchar(255) NOT NULL,
-  created TIMESTAMP NOT NULL DEFAULT current_timestamp(),
-  modified TIMESTAMP NOT NULL DEFAULT current_timestamp()
+  created timestamp NOT NULL DEFAULT current_timestamp(),
+  modified timestamp NOT NULL DEFAULT current_timestamp()
    ON UPDATE current_timestamp(),
-  notes VARCHAR(16383)
+  notes varchar(16383)
 );
 --
 -- 'pattern_view_feature_position' defines the ordered pattern features used
 -- in a 'pattern_view'
 --
 CREATE TABLE IF NOT EXISTS pattern_view_feature_position (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  pfid INT UNSIGNED NOT NULL,
-  pvfp INT UNSIGNED NOT NULL,
-  `order` INT UNSIGNED NOT NULL UNIQUE,
+  id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  pfid int unsigned NOT NULL,
+  pvfp int unsigned NOT NULL,
+  `order` int unsigned NOT NULL UNIQUE,
   CONSTRAINT FOREIGN KEY(pfid) REFERENCES pattern_feature(id),
   CONSTRAINT FOREIGN KEY(pvfp) REFERENCES pattern_view(id)
 );

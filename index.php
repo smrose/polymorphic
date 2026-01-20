@@ -19,10 +19,15 @@
  *  TemplateForm        present a form for adding or editing a template
  *  SelectPattern       select a pattern for editing
  *  ManageFeatures      manage features associated with a template
+ *  ManagePatterns      manage pattern language members
+ *  EatMe               members come and go - right here
  *  AddFeature          add the selected feature to the selected template
  *  RemoveFeatures      remove 1 or more features from a template
  *  AbsorbPatternUpdate absorb pattern update
  *  AbsorbNewPattern    absorb a new pattern
+ *  TemplateMenu        popup menu of pattern templates
+ *  PLForm              present a form for adding/editing a pattern language
+ *  SelectPL            select a pattern_language for editing
  *
  * NOTES
  *
@@ -110,6 +115,7 @@ DataStoreConnect();
 $SuppressMain = false;
 
 const ANOTHER = 'Accept and enter another';
+const ADDPATTERNS = 'Accept and add patterns';
 
 
 /* SelectTemplate()
@@ -197,11 +203,10 @@ function SelectFeature() {
   }
   $menu .= '</select>
 ';
-  print "<h2>Edit a Feature</h2>
-
-<p class=\"alert\">Select the feature you wish to edit.</p>
-
-<form method=\"POST\" action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featureform\">
+  print '<h2>Edit a Feature</h2>
+';
+Alert("Select the feature you wish to edit.");
+print "<form method=\"POST\" action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featureform\">
 <input type=\"hidden\" name=\"feature\" value=\"edit\">
 <div>$menu<div>
 <div>
@@ -230,7 +235,8 @@ function PatternForm($action, $id) {
     $title = "Editing Pattern <i>$ptitle</i>";
     $context = "<input type=\"hidden\" name=\"id\" value=\"$id\">\n";
     $nvalue = $pattern['notes'];
-    $note = "<p class=\"alert\">Editing a pattern with id <code>$id</code></p>\n<h2>$ptitle</h2>
+    $note = "<p class=\"alert\">Editing a pattern with id <code>$id</code></p>
+<h2>$ptitle</h2>
 ";
     $submit = ' <input type="submit" name="submit" value="Accept" id="accept">
 ';
@@ -241,10 +247,9 @@ function PatternForm($action, $id) {
     $action = 'absorb_add';    
     $context = "<input type=\"hidden\" name=\"template_id\" value=\"$id\">\n";
     $nvalue = '';
-    $note = "<h2>Add a Pattern</h2>
-
-<p class=\"alert\">Adding a pattern with template
-<code>{$template['name']}</code></p>";
+    $note = '<h2>Add a Pattern</h2>
+';
+    Alert("Adding a pattern with template <code>{$template['name']}</code>");
     $submit = ' <input type="submit" name="submit" value="Accept" id="accept">
  <input type="submit" name="submit" value="' . ANOTHER . '">
 ';
@@ -293,8 +298,8 @@ $context
       $value = '';
       if(isset($feature['value'])) {
         $value = " value=\"{$feature['value']}\"";
-	if(!$feature['required'])
-	  $remove = "<input type=\"checkbox\" name=\"d-{$feature['name']}\" tite=\"remove\">";
+        if(!$feature['required'])
+          $remove = "<input type=\"checkbox\" name=\"d-{$feature['name']}\" tite=\"remove\">";
       }
       $input = "<input name=\"f-{$feature['name']}\" type=\"text\" size=\"80\"$value>$remove\n";
 
@@ -317,8 +322,8 @@ $context
          *  compute the path
          *  display a link to unhide/hide the preview element
          *  add a <div class="imagebox"> containing the image preview and
-	 *   filename, hidden
-	 *  add a checkbox to delete the feature
+         *   filename, hidden
+         *  add a checkbox to delete the feature
          */
 
         $ipath = IMAGEROOT . '/';
@@ -340,10 +345,10 @@ $context
       
       if(isset($feature['value'])) {
         $value = $feature['value'];
-	$remove = "<input type=\"checkbox\" name=\"d-{$feature['name']}\" title=\"remove\">";
+        $remove = "<input type=\"checkbox\" name=\"d-{$feature['name']}\" title=\"remove\">";
       } else {
         $value = '';
-	$remove = '';
+        $remove = '';
       }
       $input = "<textarea name=\"f-{$feature['name']}\" rows=\"3\" cols=\"80\">$value</textarea>$remove\n";
     } else {
@@ -491,9 +496,9 @@ function AbsorbFeatureEdit($id, $value) {
   if(count($update)) {
     $update['id'] = $id;
     UpdateFeature($update);
-    print "<p class=\"alert\">Feature update accepted.</p>\n";
+    Alert('Feature update accepted.');
   } else
-    print "<p class=\"alert\">No changes to feature.</p>\n";
+    Alert('No changes to feature.');
   
 } /* end AbsorbFeatureEdit(() */
 
@@ -637,7 +642,7 @@ template. Filter the pattern selection menu to those of a particular template, o
       'submit' => [
         [
           'label' => 'Select',
-	  'id' => 'tsel'
+          'id' => 'tsel'
         ]
       ]
     ]);
@@ -759,6 +764,110 @@ discarded</b>.</p>
 } /* end ManageFeatures() */
 
 
+function bytitle($a, $b) {
+  return $a['title'] <=> $b['title'];
+} /* end bytitle() */
+
+
+/* ManagePatterns()
+ *
+ *  Manage patterns in this language.
+ */
+
+function ManagePatterns($plid) {
+  $pl = GetPL($plid);
+  if(!isset($pl))
+    Error("No pattern language with id $plid.");
+  $ptid = $pl['ptid'];
+  
+  # Any pattern with the same pattern_template as this language can be a member.
+  
+  $patterns = GetPatterns(['ptid' => $ptid]);
+
+  # Sort by title.
+
+  usort($patterns, 'bytitle');
+
+  # Get the existing members.
+  
+  $plmembers = GetPLMembers(['plid' => $plid]);
+
+  # Add an 'ismember' value to each pattern record.
+  
+  foreach($patterns as $k => $pattern)
+    $patterns[$k]['ismember'] = array_key_exists($pattern['id'], $plmembers);
+
+  print "<h2>Managing Patterns for Pattern Language <code>{$pl['name']}</code></h2>
+
+<p>A <em>pattern language</em> consists of a set of patterns that share a
+<em>pattern template</em> - a common set of features. Use this form to add
+and remove patterns from this pattern language. Checkboxes are already
+checked for those patterns that are already members of this language.</p>
+
+<form method=\"POST\" action=\"{$_SERVER['SCRIPT_NAME']}\" id=\"faform\">
+ <input type=\"hidden\" name=\"pl\" value=\"eatme\">
+ <input type=\"hidden\" name=\"plid\" value=\"$plid\">
+ <div class=\"fh\">Pattern title</div>
+ <div class=\"fh\">Membership</div>
+";
+  foreach($patterns as $pattern) {
+    $checked = $pattern['ismember'] ? ' checked="checked"' : '';
+    print " <div class=\"antifa\">{$pattern['title']}</div>
+  <div class=\"centrist\">
+   <input type=\"checkbox\" name=\"{$pattern['id']}\"$checked>
+  </div>
+";
+  }
+  print " <div class=\"fsub\">
+ <input type=\"submit\" name=\"submit\" value=\"Accept\">
+  <input type=\"submit\" name=\"submit\" value=\"Cancel\">
+ </div>
+</form>
+";
+
+} /* end ManagePatterns() */
+
+
+/* EatMe()
+ *
+ *  Make a hearty meal of assigments - and unassignments - of patterns to ths
+ *  pattern language. Schema afficianados know: that's a matter of inserting
+ *  and deleting rows in the 'plmember' table.
+ */
+
+function EatMe() {
+  $pl = GetPL($plid = $_REQUEST['plid']);
+  if(!isset($pl))
+    Error("No pattern language with id <code>$plid</code>.");
+  $inserts = [];
+  $deletes = [];
+  $nmembers = [];
+  $omembers = GetPLMembers(['plid' => $plid]);
+
+  // If a POST parameter is numeric, that's a checked box.
+
+  foreach($_REQUEST as $k => $v)
+    if(preg_match('/^\d+$/', $k))
+      $nmembers[$k] = true;
+
+  // Look for INSERTs - new members.
+  
+  foreach($nmembers as $k => $v)
+    if(!array_key_exists($k, $omembers))
+      $inserts[] = $k;
+
+  // Look for DELETEs - departing members.
+  
+  foreach($omembers as $k => $v)
+    if(!array_key_exists($k, $nmembers))
+      $deletes[] = $k;
+
+  $stats = UpdatePLMembers($plid, $inserts, $deletes);
+  Alert("Added {$stats['inserts']} and deleted {$stats['deletes']} patterns to the <em>{$pl['name']}</em> pattern language.");
+
+} /* end EatMe() */
+
+
 /* AddFeature()
  *
  *  Add the selected feature to the selected template.
@@ -823,9 +932,9 @@ function AbsorbPatternUpdate() {
         continue; # no change
       else
         $update[$name] = [
-	  'featurename' => $name,
-	  'value' => $v
-	];
+          'featurename' => $name,
+          'value' => $v
+        ];
 
     } elseif(isset($feature) && $feature['type'] == 'image' &&
              isset($feature['hash'])) {
@@ -863,21 +972,21 @@ function AbsorbPatternUpdate() {
         $file = $_FILES[$name];
         if($file['error'] == NOFILE)
           continue;
-	$file['alttext'] = trim($_REQUEST[$k]);
+        $file['alttext'] = trim($_REQUEST[$k]);
         if($file = CheckFile($file))
-	  $insert[$name] = [
-	    'name' => $file['name'],
+          $insert[$name] = [
+            'name' => $file['name'],
             'fname' => $name,
             'alttext' => $file['alttext'],
             'hash' => $file['hash']
           ];
-	else
-	  Alert("Failed to set a value for $name.");
+        else
+          Alert("Failed to set a value for $name.");
        } else {
         if($feature['type'] == 'string' || $feature['type'] == 'text') {
-	  if(strlen($v))
+          if(strlen($v))
             $insert[] = ['name' => $name, 'value' => $v];
-     	} else  
+             } else  
           $insert[] = ['name' => $name, 'value' => $v];
       }
     }
@@ -944,13 +1053,13 @@ function AbsorbNewPattern() {
       if($haveUpload = ($file['error'] != NOFILE)) {
         $file['alttext'] = $fvalue;
         if($file = CheckFile($file))
-	  InsertFeatureValue([
-	    'pid' => $pattern['id'],
-	    'fname' => $fname,
-	    'alttext' => $file['alttext'],
-	    'hash' => $file['hash'],
-	    'name' => $file['name']
-	  ]);
+          InsertFeatureValue([
+            'pid' => $pattern['id'],
+            'fname' => $fname,
+            'alttext' => $file['alttext'],
+            'hash' => $file['hash'],
+            'name' => $file['name']
+          ]);
       }
     } else {
 
@@ -959,11 +1068,11 @@ function AbsorbNewPattern() {
       if(($feature['type'] == 'string' || $feature['type'] == 'text')
           && !strlen($fvalue))
         continue;
-	
+        
       InsertFeatureValue([
-	'pid' => $pattern['id'],
-	'fname' => $fname,
-	'value' => $fvalue
+        'pid' => $pattern['id'],
+        'fname' => $fname,
+        'value' => $fvalue
       ]);
     }
   }
@@ -971,6 +1080,131 @@ function AbsorbNewPattern() {
   return $pattern;
   
 } /* end AbsorbNewPattern() */
+
+
+/* TemplateMenu()
+ *
+ *  Return a popup menu of pattern_templates.
+ */
+
+function TemplateMenu($id = null) {
+  $pts = GetTemplates();
+  $tm = '<select name="template_id">
+ <option value="0">Select a pattern template</option>
+';
+  foreach($pts as $pt) {
+    $selected = (isset($id) && $id == $pt['id']) ? ' selected="selected"' : '';
+    $tm .= " <option value=\"{$pt['id']}\"$selected>{$pt['name']}</option>\n";
+  }
+  $tm .= "</select>\n";
+  return $tm;
+  
+} /* end TemplateMenu() */
+
+
+/* PLForm()
+ *
+ * Add, edit, delete pattern_languages.
+ */
+
+function PLForm($id = null) {
+
+  $pls = GetPLs();
+
+  if(isset($id)) {
+
+    # Working with existing.
+
+    if(!$id)
+      Error("You haven't selected a pattern language.");
+    $pl = $pls[$id];
+    if(! isset($pl) )
+      Error('Pattern language not found');
+
+    $name_value = " value=\"{$pl['name']}\"";
+    $notes_value = $pl['notes'];
+    $delete = '';
+    $title = 'Edit Pattern Language';
+    $tmenu = TemplateMenu($pl['ptid']);
+    $context = "<input type=\"hidden\" name=\"plid\" value=\"$id\">\n";
+
+  } else {
+
+    # Adding.
+
+    $title = 'Add a Pattern Langage';
+    $name_value = $notes_value = $delete = '';
+    $tmenu = TemplateMenu();
+  }
+  print "<h2>$title</h2>
+
+<form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\">
+ <input type=\"hidden\" name=\"pl\" value=\"absorb_pl\">
+$context
+
+ <div class=\"fname\">Pattern language name:</div>
+ <div><input type=\"text\" name=\"name\"$name_value\"></div>
+
+ <div class=\"fname\">Notes:</div>
+ <div>
+  <textarea name=\"notes\" rows=\"3\" cols=\"80\">$notes_value</textarea>
+ </div>
+
+ <div class=\"fname\">Pattern template:</div>
+ <div>$tmenu</div>
+
+ <div class=\"fsub\">
+  <input type=\"submit\" name=\"submit\" value=\"" . ADDPATTERNS . "\">
+  <input type=\"submit\" name=\"submit\" value=\"Accept\" id=\"accept\">
+  $delete
+  <input type=\"submit\" name=\"submit\" value=\"Cancel\">
+ </div>
+
+</form>
+";
+  
+} /* end PLForm() */
+
+
+/* SelectPL()
+ *
+ *  Select a pattern language.
+ */
+
+function SelectPL($context) {
+  $pls = GetPLs();
+  $selpl = "<select name=\"plid\" id=\"plid\">
+ <option value=\"0\">Select a pattern language</option>
+";
+  $submit = '';
+  foreach($context['submit'] as $sub) {
+    if(array_key_exists('id', $sub))
+      $id = " id=\"{$sub['id']}\"";
+    else
+      $id = '';
+    $submit .= "<input type=\"submit\" name=\"submit\" value=\"{$sub['label']}\"$id>\n";
+  }
+  $submit .= "<input type=\"submit\" name=\"submit\" value=\"Cancel\">\n";
+
+  print "<h2>{$context['label']}</h2>\n";
+  
+  foreach($pls as $pl)
+    $selpl .= " <option value=\"{$pl['id']}\">{$pl['name']}</option>\n";
+  $selpl .= "</select>\n";
+
+  print "<form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\" id=\"selectpl\">
+ <input type=\"hidden\" name=\"{$context['context']}\" value=\"{$context['action']}\">
+
+ <div class=\"fname\">Select a pattern language:</div>
+ <div>$selpl</div>
+ 
+ <div class=\"fsub\">
+  $submit
+ </div>
+</form>
+";
+
+} /* end SelectPL() */
 
 
 ?>
@@ -1146,6 +1380,94 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
       }
     }
   }
+} elseif(isset($_REQUEST['pv'])) {
+
+  # pattern view actions
+
+  Error('not implemented');
+  
+} elseif(isset($_REQUEST['pl'])) {
+
+  # pattern language actions
+
+  if($_REQUEST['pl'] == 'edit') {
+    if(isset($_REQUEST['plid'])) {
+
+      // working with the selected language
+
+      if($plid = $_REQUEST['plid']) {
+        if($_REQUEST['submit'] == 'Edit metadata') {
+          PLForm($plid);
+          $SuppressMain = 1;
+        } elseif($_REQUEST['submit'] == 'Manage patterns') {
+          ManagePatterns($plid);
+	  $SuppressMain = true;
+        } elseif(isset($_REQUEST['action']) &&
+                 $_REQUEST['action'] == 'rmpatterns') {
+          true;
+        } else {
+          ManagePatterns($plid);
+          $SuppressMain = true;
+        }
+      } else {
+        Error('You failed to select a pattern language');
+      }
+    } else {
+      SelectPL([
+        'label' => 'Edit Pattern Language',
+        'context' => 'pl',
+	'action' => 'edit',
+	'submit' => [
+	  [
+	    'label' => 'Edit metadata',
+	    'id' => 'metadata',
+	  ],
+	  [
+	    'id' => 'plsel',
+	    'label' => 'Manage patterns'
+	  ]
+	],
+      ]);
+      $SuppressMain = true;
+    }
+  } elseif($_REQUEST['pl'] == 'add') {
+    PLForm();
+    $SuppressMain = 1;
+  } elseif($_REQUEST['pl'] == 'eatme') {
+    EatMe();
+  } elseif($_REQUEST['pl'] == 'absorb_pl') {
+    if(isset($_REQUEST['plid'])) {
+      $plid = $_REQUEST['plid'];
+      if($_REQUEST['submit'] == 'Delete') {
+        DeletePL($plid);
+        Alert('Deleted pattern language');
+      } else {
+        CheckIdentifier($_REQUEST['name'], true);
+	if(UpdatePL([
+	    'id' => $plid,
+	    'ptid' => $_REQUEST['template_id'],
+	    'name' => $_REQUEST['name'],
+	    'notes' => $_REQUEST['notes']
+	  ]))
+	  Alert("Pattern language <code>{$_REQUEST['name']}</code> updated.");
+        else
+	  Alert("No update to pattern language <code>{$_REQUEST['name']}</code>.");
+      }
+    } else {
+        CheckIdentifier($_REQUEST['name'], true);
+	$pl = InsertPL([
+	  'name' => $_REQUEST['name'],
+	  'notes' => $_REQUEST['notes'],
+	  'ptid' => $_REQUEST['template_id']
+	]);
+	Alert("Inserted pattern language <code>{$_REQUEST['name']}</code> (id <code>{$pl['id']}</code>).");
+	if($_REQUEST['submit'] == ADDPATTERNS) {
+	  ManagePatterns($pl['id']);
+	  $SuppressMain = true;
+	}
+    }
+  }
+
 } elseif(isset($_REQUEST['template'])) {
 
   # template actions
@@ -1187,10 +1509,10 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
           
           ManageFeatures($template_id);
           $SuppressMain = true;
-          }
-       } else {
-         Error('You failed to select a template.');
-       }
+        }
+      } else {
+        Error('You failed to select a template.');
+      }
     } else {
 
       # no template yet selected
@@ -1226,16 +1548,16 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
 
       if($_REQUEST['submit'] == 'Delete') {
 
-          # We are deleting this template.
+        # We are deleting this template.
           
-          DeleteTemplate($template_id);
-          alert('Deleted template.');
+        DeleteTemplate($template_id);
+        Alert('Deleted template.');
 
       } else {
       
         # Absorbing a pattern_template edit.
 
-        CheckIdentifier($_REQUEST['name']);
+        CheckIdentifier($_REQUEST['name'], true);
         UpdateTemplate([
           'id' => $template_id,
           'name' => $_REQUEST['name'],
@@ -1247,15 +1569,16 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
     
       # Absorb a new pattern_template.
     
-      CheckIdentifier($_REQUEST['name']);
+      CheckIdentifier($_REQUEST['name'], true);
       $template = InsertTemplate([
         'name' => $_REQUEST['name'],
         'notes' => $_REQUEST['notes']
       ]);
       Alert("Inserted template <i>{$template['name']}</i>, id <code>{$template['id']}</code>.");
-      if($_REQUEST['submit'] == 'Accept and add features')
+      if($_REQUEST['submit'] == 'Accept and add features') {
         ManageFeatures($template['id']);
-	$SuppressMain = true;
+        $SuppressMain = true;
+      }
     }
   }
 } // end actions
@@ -1282,6 +1605,20 @@ if(!$SuppressMain) {
 <ul>
  <li><a href="?pattern=add">Create a pattern</a></li>
  <li><a href="?pattern=edit">Edit a pattern</a></li>
+</ul>
+
+<h2>Pattern Languages</h2>
+
+<ul>
+ <li><a href="?pl=add">Create a pattern language</a></li>
+ <li><a href="?pl=edit">Edit a pattern language</a></li>
+</ul>
+
+<h2>Pattern Views</h2>
+
+<ul>
+ <li><a href="?pv=add">Create a pattern view</a></li>
+ <li><a href="?pv=edit">Edit a pattern view</a></li>
 </ul>
 
 </div>
