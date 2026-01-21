@@ -49,6 +49,10 @@ the schema of the SQL database design we are using.</p>
    based on the feature name. For example, the table storing values for the
    <code>title</code> feature is <code>pf_title</code>, which has
    a <code>value</code> column suitable for storing strings.</dd>
+ <dd>Values for all of the feature types - except <code>image</code>
+   - are stored in these feature value tables. Images values live in the
+  file system, named with the SHA1 hash of the contents, and that hash
+  value is stored in the value table.
 
  <dt>pattern language</dt>
  <dd>A <em>pattern language</em> is a collection of <em>patterns</em>, which
@@ -56,19 +60,78 @@ the schema of the SQL database design we are using.</p>
 
 <dt>pattern view</dt>
  <dd>A <em>pattern view</em> is an ordered set of <em>pattern
-   features</em> sharing a common <em>pattern template</em>. The
-   concept here is to draw upon a subset of pattern features to present
-   a set of <em>patterns</em> in a particular context, such as displayed
-   on a screen for assessment or printed on a set of cards.</dd>
+  features</em> sharing a common <em>pattern template</em>. The
+  concept here is to draw upon a subset of pattern features to present
+  a set of <em>patterns</em> in a particular context, such as displayed
+  on a screen for assessment or printed on a set of cards.</dd>
+ <dd>Ideally, we would have a language that would describe not only the
+  order of the features in a view, but how to format them. We are seeking
+  ideas for how to do this.</dd>
 
-<!-- <dt></dt>
- <dd></dd>-->
+</dl>
+
+<h2>Toy Application</h2>
+
+<p>To test the concepts and data architecture, a toy <a
+href="/publicsphereproject/polymorphic/">Polymorphic Pattern
+Sphere</a> application is being developed. The code - PHP - is in the
+GitHub repository at <a href="https://github.com/smrose/polymorphic/">
+github.com/smrose/polymorphic</a>. We are using PDO to access the data
+store, which is MariaDB/MySQL. <em>Please use the issue tracker
+there to reports bugs and request features</em>.</p>
+
+<p>We have loaded the datastore with the <em>Liberating Voices</em>
+patterns as they exist in the existing <a
+href="https://labs.publicsphereproject.org/ps">Pattern Sphere</a>
+application on <code>labs.publicsphereproject.org</code>. To do that,
+we have:</p>
+
+<ol>
+
+ <li>Created pattern features for each feature those patterns have in the
+  Pattern Sphere.</li>
+
+ <li>Created pattern feature value tables for each feature - including
+  thematic images - and populated them with values.</li>
+
+ <li>Created a <code>Liberating Voices</code> pattern template that includes
+  all of those features.</li>
+
+ <li>Created a <code>Liberating Voices</code> pattern language that includes
+  all of the patterns.</li>
+
+</ol>
+
+<p>Besides the code for the application, scripts for creating the
+database and populating it with values from <em>Liberating Voices</em>
+is in the repository.</p>
+
+<p>The toy application supports these actions:</p>
+
+<dl>
+
+  <dt>pattern features</dt>
+  <dd>Create, edit, and delete.</dd>
+
+  <dt>pattern templates</dt>
+  <dd>Create, edit - both metadata and included features - and delete.
+    TODO: support cloning of pattern templates.</dd>
+
+  <dt>patterns</dt>
+  <dd>Create and edit. Feature values can bee edited and deleted. TODO:
+    support deletion of patterns. TODO: support cloning of patterns.</dd>
+
+  <dt>pattern languages</dt>
+  <dd>Create and edit - both metadata and pattern membership.</dd>
+
+  <dt>pattern views</dt>
+  <dd>Support for pattern views is under development.</dd>
 
 </dl>
 
 <h2>Schema</h2>
 
-<p>Here is an alphabetic list of tables:</p>
+<p>Here is an alphabetic list of tables linked to their definitions:</p>
 <ul>
  <li><a href="#language">language</a></li>
  <li><a href="#pattern">pattern</a></li>
@@ -249,6 +312,10 @@ CREATE TABLE pattern_view_feature_position (
   CONSTRAINT FOREIGN KEY(pvfp) REFERENCES pattern_view(id)
 );
 </pre>
+
+<script>
+  document.write('<p>Last modified: <code>' + document.lastModified + '</code></p>')
+</script>
 
 </body>
 </html>
