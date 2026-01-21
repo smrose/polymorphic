@@ -1184,7 +1184,7 @@ $context
 
 function SelectPL($context) {
   $pls = GetPLs();
-  $ppls = GetPLs(true); # pls with pattern counts
+  $ppls = GetPLs(null, true); # pls with pattern counts
   
   $selpl = "<select name=\"plid\">
  <option value=\"0\">Select a pattern language</option>
