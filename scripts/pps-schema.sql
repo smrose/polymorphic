@@ -25,7 +25,10 @@ FLUSH PRIVILEGES;
 CREATE TABLE IF NOT EXISTS pattern_template (
   id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
   name varchar(255) NOT NULL UNIQUE,
-  notes varchar(16383) DEFAULT NULL
+  notes varchar(16383) DEFAULT NULL,
+  created timestamp NOT NULL DEFAULT current_timestamp(),
+  modified timestamp NOT NULL DEFAULT current_timestamp()
+   ON UPDATE current_timestamp()
 );
 --
 -- 'pattern'
@@ -122,11 +125,13 @@ CREATE TABLE IF NOT EXISTS plmember (
 --
 CREATE TABLE IF NOT EXISTS pattern_view (
   id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  ptid int unsigned NOT NULL,
   name varchar(255) NOT NULL,
   created timestamp NOT NULL DEFAULT current_timestamp(),
   modified timestamp NOT NULL DEFAULT current_timestamp()
    ON UPDATE current_timestamp(),
-  notes varchar(16383)
+  notes varchar(16383),
+  CONSTRAINT FOREIGN KEY (ptid) REFERENCES pattern_template(id)
 );
 --
 -- 'pattern_view_feature_position' defines the ordered pattern features used

@@ -786,7 +786,10 @@ function ManagePatterns($plid) {
 
   # Sort by title.
 
-  usort($patterns, 'bytitle');
+  if(isset($patterns) && count($patterns))
+    usort($patterns, 'bytitle');
+  else
+    $patterns = [];
 
   # Get the existing members.
   
@@ -1169,11 +1172,21 @@ $context
 /* SelectPL()
  *
  *  Select a pattern language.
+ *
+ *  All the patterns in a pattern language share a template. If there are
+ *  no patterns in the template a pattern language uses, there is no ability
+ *  to add patterns to it. Therefore, while we support creation and editing
+ *  of pattern languages, we do the user no favor by offering them to add
+ *  patterns to pattern languages based on patternless templates. In the
+ *  event that we find such pattern languages, we offer a separate menu
+ *  for selecting for metadata edits and for selecting for adding patterns.
  */
 
 function SelectPL($context) {
   $pls = GetPLs();
-  $selpl = "<select name=\"plid\" id=\"plid\">
+  $ppls = GetPLs(true); # pls with pattern counts
+  
+  $selpl = "<select name=\"plid\">
  <option value=\"0\">Select a pattern language</option>
 ";
   $submit = '';

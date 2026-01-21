@@ -339,8 +339,8 @@ function UpdatePL($update) {
  *  Return the pattern_language record with the argument id.
  */
  
-function GetPL($id) {
-  $pls = GetPLs(['id' => $id]);
+function GetPL($id, $withpatterns = null) {
+  $pls = GetPLs(['id' => $id], $withpatterns);
   return count($pls) ? $pls[$id] : false;
   
 } /* end GetPL() */
@@ -351,7 +351,7 @@ function GetPL($id) {
  *  Return the selected pattern_language records.
  */
 
-function GetPLs($which = null) {
+function GetPLs($which = null, $withpatterns = null) {
   global $pdo;
 
   if(isset($which)) {
@@ -368,7 +368,15 @@ function GetPLs($which = null) {
     $q = '';
     $u = [];
   }
-  $query = "SELECT * FROM pattern_language $q";
+  if(isset($withpatterns))
+    $query = "SELECT pl.*, count(*) AS pcount
+ FROM pattern_language pl
+  JOIN pattern_template pt ON pl.ptid = pt.id
+  JOIN pattern p ON p.ptid = pt.id
+ GROUP BY p.ptid";
+  else
+    $query = 'SELECT * FROM pattern_language';
+
   try {
     $sth = $pdo->prepare($query);
   } catch(PDOException $e) {
