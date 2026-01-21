@@ -1634,6 +1634,8 @@ if(!$SuppressMain) {
  <li><a href="?pv=edit">Edit a pattern view</a></li>
 </ul>
 
+<p><a href="README.html">README</a></p>
+
 </div>
 <?php
 }
