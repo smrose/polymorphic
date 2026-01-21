@@ -349,6 +349,9 @@ function GetPL($id, $withpatterns = null) {
 /* GetPLs()
  *
  *  Return the selected pattern_language records.
+ *
+ *  If $withpatterns is true, only return pattern languages using pattern
+ *  templates that have patterns using that template.
  */
 
 function GetPLs($which = null, $withpatterns = null) {
@@ -373,9 +376,10 @@ function GetPLs($which = null, $withpatterns = null) {
  FROM pattern_language pl
   JOIN pattern_template pt ON pl.ptid = pt.id
   JOIN pattern p ON p.ptid = pt.id
+ $q
  GROUP BY p.ptid";
   else
-    $query = 'SELECT * FROM pattern_language';
+    $query = "SELECT * FROM pattern_language $q";
 
   try {
     $sth = $pdo->prepare($query);
