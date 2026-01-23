@@ -47,7 +47,7 @@ INSERT INTO pattern_language (name, ptid) VALUES ('Liberating Voices', 1);
 --
 -- pattern_view
 --
-INSERT INTO pattern_view(name, ptid) VALUES ('Pattern Sphere', 1);
+INSERT INTO pattern_view(name, ptid) VALUES ('Liberating Voices Test', 1);
 --
 -- 'pf_url' is a pattern feature value table for 'url', type string
 --

@@ -59,14 +59,10 @@ the schema of the SQL database design we are using.</p>
   share a <em>pattern template</em>.</dd>
 
 <dt>pattern view</dt>
- <dd>A <em>pattern view</em> is an ordered set of <em>pattern
-  features</em> sharing a common <em>pattern template</em>. The
-  concept here is to draw upon a subset of pattern features to present
-  a set of <em>patterns</em> in a particular context, such as displayed
-  on a screen for assessment or printed on a set of cards.</dd>
- <dd>Ideally, we would have a language that would describe not only the
-  order of the features in a view, but how to format them. We are seeking
-  ideas for how to do this.</dd>
+ <dd>A <em>pattern view</em> is a specification for how to render patterns
+   using a common pattern template for display or printing. It has a name,
+   a reference to a template, and a layout. The layout is a skeletal HTML
+   page that has tokens showing where to insert the feature value.</dd>
 
 </dl>
 
@@ -137,7 +133,6 @@ is in the repository.</p>
  <li><a href="#pattern">pattern</a></li>
  <li><a href="#pattern_feature">pattern_feature</a></li>
  <li><a href="#pattern_language">pattern_language</a></li>
- <li><a href="#pattern_note">pattern_note</a></li>
  <li><a href="#pattern_template">pattern_template</a></li>
  <li><a href="#pattern_view">pattern_view</a></li>
  <li><a href="#pattern_view_feature_position">pattern_view_feature_position</a></li>
@@ -188,22 +183,6 @@ CREATE TABLE language (
   code CHAR(2) NOT NULL,
   description varchar(255) NOT NULL,
   PRIMARY KEY (code)
-);
-</pre>
-
-<p id="pattern_note">Not yet used, each row in the <code>pattern_note</code>
-table is a translation of a <code>pattern.note</code> value.</p>
-
-<pre>
-CREATE TABLE pattern_note (
-  note TINYTEXT NOT NULL,
-  pid int unsigned NOT NULL,
-  language CHAR(2) NOT NULL DEFAULT 'en',
-  created timestamp NOT NULL DEFAULT current_timestamp(),
-  modified timestamp NOT NULL DEFAULT current_timestamp()
-   ON UPDATE current_timestamp(),
-  CONSTRAINT FOREIGN KEY(language) REFERENCES language(code),
-  CONSTRAINT FOREIGN KEY(pid) REFERENCES pattern(id)
 );
 </pre>
 
@@ -280,36 +259,20 @@ CREATE TABLE plmember (
 );
 </pre>
 
-<p id="pattern_view">A <code>pattern_view</code> is, in combination
-  with rows
-  in <a href="#pattern_view_feature_position">pattern_view_feature_position<code></a>,
-  a named ordering of the features in a pattern template.</p>
+<p id="pattern_view">A <code>pattern_view</code> describes how to display
+  a pattern.</p>
 
 <pre>
 CREATE TABLE pattern_view (
   id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
   ptid int unsigned NOT NULL,
   name varchar(255) NOT NULL,
+  layout mediumtext NOT NULL,
   created timestamp NOT NULL DEFAULT current_timestamp(),
   modified timestamp NOT NULL DEFAULT current_timestamp()
    ON UPDATE current_timestamp(),
   notes varchar(16383),
   CONSTRAINT FOREIGN KEY (ptid) REFERENCES pattern_template(id)
-);
-</pre>
-
-<p id="pattern_view_feature_position">Rows in this table specify the ordering
-  of pattern features from a template that can be used to display patterns
-  using that template.</p>
-
-<pre>
-CREATE TABLE pattern_view_feature_position (
-  id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  pfid int unsigned NOT NULL,
-  pvfp int unsigned NOT NULL,
-  `order` int unsigned NOT NULL UNIQUE,
-  CONSTRAINT FOREIGN KEY(pfid) REFERENCES pattern_feature(id),
-  CONSTRAINT FOREIGN KEY(pvfp) REFERENCES pattern_view(id)
 );
 </pre>
 

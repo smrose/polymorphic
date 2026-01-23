@@ -53,19 +53,6 @@ CREATE TABLE IF NOT EXISTS language (
 );
 INSERT INTO language(code, description) VALUES('en', 'US English');
 --
--- pattern note with language
---
-CREATE TABLE IF NOT EXISTS pattern_note (
-  note TINYTEXT NOT NULL,
-  pid int unsigned NOT NULL,
-  language CHAR(2) NOT NULL DEFAULT 'en',
-  created timestamp NOT NULL DEFAULT current_timestamp(),
-  modified timestamp NOT NULL DEFAULT current_timestamp()
-   ON UPDATE current_timestamp(),
-  CONSTRAINT FOREIGN KEY(language) REFERENCES language(code),
-  CONSTRAINT FOREIGN KEY(pid) REFERENCES pattern(id)
-);
---
 -- 'pattern_language' defines a named collection of patterns
 --
 CREATE TABLE IF NOT EXISTS pattern_language (
@@ -127,21 +114,10 @@ CREATE TABLE IF NOT EXISTS pattern_view (
   id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
   ptid int unsigned NOT NULL,
   name varchar(255) NOT NULL,
+  layout mediumtext,
   created timestamp NOT NULL DEFAULT current_timestamp(),
   modified timestamp NOT NULL DEFAULT current_timestamp()
    ON UPDATE current_timestamp(),
   notes varchar(16383),
   CONSTRAINT FOREIGN KEY (ptid) REFERENCES pattern_template(id)
-);
---
--- 'pattern_view_feature_position' defines the ordered pattern features used
--- in a 'pattern_view'
---
-CREATE TABLE IF NOT EXISTS pattern_view_feature_position (
-  id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  pfid int unsigned NOT NULL,
-  pvfp int unsigned NOT NULL,
-  `order` int unsigned NOT NULL UNIQUE,
-  CONSTRAINT FOREIGN KEY(pfid) REFERENCES pattern_feature(id),
-  CONSTRAINT FOREIGN KEY(pvfp) REFERENCES pattern_view(id)
 );

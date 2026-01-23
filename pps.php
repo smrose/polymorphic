@@ -14,7 +14,12 @@
  *  GetPatterns       fetch pattern records
  *  GetPattern        fetch a pattern with its features
  *  InsertPattern     insert a pattern record
+ *  DeletePL          delete a pattern_language record
+ *  UpdatePL          update a pattern_language record
+ *  GetPL             fetch one pattern_language record
  *  GetPLs            fetch pattern_language records
+ *  GetPV             fetch one pattern_view record
+ *  GetPVs            fetch pattern_view records
  *  GetTemplates      fetch pattern_template records
  *  GetTemplate       fetch pattern_template record with its features
  *  UpdateTemplate    update pattern_template record
@@ -25,10 +30,14 @@
  *  GetFeature        fetch pattern_feature by id
  *  InsertFeature     insert a pattern_feature and create a table for it
  *  InsertTemplateFeature associate this feature with this template
+ *  GetTemplateFeature return a pf_feature with feature and template names
+ *  DeleteTemplateFeature delete a pf_feature
  *  UpdateFeature     apply pattern_feature update
  *  DeleteFeature     delete this feature, its table, and references to it
  *  InsertTemplate    insert a pattern_template
  *  InsertPL          insert a pattern_language
+ *  InsertPV          insert a pattern_view
+ *  UpdatePV          update a pattern_view
  *  GetPLMembers      get plmember records
  *  UpdatePLMembers   members come, members go - it is what it is
  *  InsertPLMember    insert a plmember record
@@ -400,6 +409,63 @@ function GetPLs($which = null, $withpatterns = null) {
   return $pls;
 
 } /* end GetPLs() */
+
+
+/* GetPV()
+ *
+ *  Get the pattern_view with the argument id.
+ */
+
+function GetPV($column, $value) {
+  $pvs = GetPVs([$column => $value]);
+  return ($pvs && count($pvs) == 1) ? array_pop($pvs) : false;
+  
+} /* end GetPV() */
+
+
+/* GetPVs()
+ *
+ *  Return the selected pattern_template records.
+ */
+
+function GetPVs($which = null) {
+  global $pdo;
+
+  if(isset($which)) {
+    $q = '';
+    $u = [];
+    foreach($which as $column => $value) {
+      if(strlen($q))
+        $q .= ' AND ';
+      $q .= " $column = ?";
+      $u[] = $value;
+    }
+    $q = "WHERE $q";
+  } else {
+    $q = '';
+    $u = [];
+  }
+  $query = "SELECT * FROM pattern_view $q";
+
+  try {
+    $sth = $pdo->prepare($query);
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
+  }
+  try {
+    $rv = $sth->execute($u);
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', $e->getCode();
+    exit();
+  }
+  $pls = [];
+  while($pv = $sth->fetch())
+    $pvs[$pv['id']] = $pv;
+  return $pvs;
+
+} /* end GetPVs() */
 
 
 /* GetTemplates()
@@ -1079,6 +1145,70 @@ function InsertPL($params) {
 } /* end InsertPL() */
 
 
+/* InsertPV()
+ *
+ *  Insert a pattern_view.
+ */
+
+function InsertPV($params) {
+  global $pdo;
+
+  $params['name'] = trim($params['name']);
+  if(!strlen($params['name']))
+    Error('Name of view may not be empty.');
+  if(GetPV(['name' => $params['name']]))
+    Error("There is already a pattern view with name \"{$params['name']}\" and there cannot be two.");
+  $sql = 'INSERT INTO pattern_view(name, notes, layout, ptid)
+ VALUES(:name, :notes, :layout, :ptid)';
+  try {
+    $sth = $pdo->prepare($sql);
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
+  }
+  try {
+    $rv = $sth->execute($params);
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
+  }
+  $params['id'] = $pdo->lastInsertId();
+  return $params;
+  
+} /* end InsertPV() */
+
+
+/* UpdatePV()
+ *
+ *  Update a pattern_view record.
+ */
+
+function UpdatePV($update) {
+  global $pdo;
+
+  $pv = GetPV('id', $update['id']);
+  $q = '';
+  $u = [];
+  foreach($update as $k => $v) {
+    if($k == 'id' || $pl[$k] == $v)
+      continue;
+    if(strlen($q))
+      $q .= ',';
+    $q .= "$k = :$k";
+    $u[$k] = $v;
+  }
+  if(count($u)) {
+    $u['id'] = $update['id'];
+    $sql = "UPDATE pattern_view SET $q WHERE id = :id";
+    $sth = $pdo->prepare($sql);
+    $sth->execute($u);
+    return $update;
+  }
+  return false;
+  
+} /* end UpdatePV() */
+
+
 /* GetPLMembers()
  *
  *  Get matching plmember records ordered by pid.
@@ -1520,9 +1650,9 @@ function CheckIdentifier($identifier, $white = false) {
 
 /* CheckFile()
  *
- *  Validate a file upload. The argument is from $_FILES[] with an added
- *  'alttext' field. If all is well, we add a 'hash' field and return it,
- *  else false.
+ *  Validate an image file upload. The argument is from $_FILES[] with
+ *  an added 'alttext' field. If all is well, we add a 'hash' field
+ *  and return it, else false.
  */
 
 function CheckFile($file) {

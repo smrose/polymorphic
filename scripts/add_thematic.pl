@@ -13,19 +13,20 @@
 #
 # NOTES
 #
-#  Adding a feature to a template requires that the pattern_feature table
-#  row be inserted (with the name and type) and that a pt_feature row row
-#  be inserted with the pattern_template.id and pattern_feature.id values.
-#  We do both here.
+#  Adding a feature to a template requires that the pattern_feature
+#  table row be inserted (with the name and type) and that a
+#  pt_feature row be inserted with the pattern_template.id and
+#  pattern_feature.id values.  We do both here.
 #
 #  That done, adding the feature values to patterns requires inserting
 #  a row in pf_thematicimage with the corresponding pattern.id and
-#  pattern_feature.id values along with the hash field that is needed to
-#  find the image in the file system and the metadata fields.
+#  pattern_feature.id values along with the hash field that is needed
+#  to find the image in the file system and the metadata fields.
 #
-#  The image tree is necessarily writable by the web server user, which is
-#  the Unix user apache on Redhatian systems. For this script to copy files
-#  into place, the simplest approach is to su to user apache to run it.
+#  The image tree is necessarily writable by the web server user,
+#  which is the Unix user apache on Redhatian systems. For this script
+#  to copy files into place, the simplest approach is to su to user
+#  apache to run it.
 #
 #  The images are named with the title of the associated pattern and
 #  stored in thematic/ with a .jpg extentions.

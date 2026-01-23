@@ -28,6 +28,8 @@
  *  TemplateMenu        popup menu of pattern templates
  *  PLForm              present a form for adding/editing a pattern language
  *  SelectPL            select a pattern_language for editing
+ *  SelectPV            select a pattern_view for editing
+ *  PVForm              present a form for adding/editing a pattern view
  *
  * NOTES
  *
@@ -1220,6 +1222,236 @@ function SelectPL($context) {
 } /* end SelectPL() */
 
 
+/* SelectPV()
+ *
+ *  Select a pattern view.
+ */
+
+function SelectPV($context) {
+  $pvs = GetPVs();
+  
+  $selpv = "<select name=\"pvid\">
+ <option value=\"0\">Select a pattern view</option>
+";
+  $submit = '';
+  foreach($context['submit'] as $sub) {
+    if(array_key_exists('id', $sub))
+      $id = " id=\"{$sub['id']}\"";
+    else
+      $id = '';
+    $submit .= "<input type=\"submit\" name=\"submit\" value=\"{$sub['label']}\"$id>\n";
+  }
+  $submit .= "<input type=\"submit\" name=\"submit\" value=\"Cancel\">\n";
+
+  print "<h2>{$context['label']}</h2>\n";
+  
+  foreach($pvs as $pv)
+    $selpv .= " <option value=\"{$pv['id']}\">{$pv['name']}</option>\n";
+  $selpv .= "</select>\n";
+
+  print "<form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\" id=\"selectpv\">
+ <input type=\"hidden\" name=\"{$context['context']}\" value=\"{$context['action']}\">
+
+ <div class=\"fname\">Select a pattern view:</div>
+ <div>$selpv</div>
+ 
+ <div class=\"fsub\">
+  $submit
+ </div>
+</form>
+";
+
+} /* end SelectPV() */
+
+
+/* PVForm()
+ *
+ *  Form to adding/editing pattern views.
+ */
+
+function PVForm($id = null) {
+  $pvs = GetPVs();
+
+  if(isset($id)) {
+
+    // editing a pattern view
+    
+    if(!$id)
+      Error("You haven't selected a pattern view.");
+    $pv = $pvs[$id];
+    if(!isset($pv))
+      Error("Pattern view not found.");
+    $name_value = " value=\"{$pv['name']}\"";
+    $notes_value = $pv['notes'];
+    $layout_value = $pv['layout'];
+    $delete = '';
+    $title = 'Edit Pattern View';
+    $context = "<input type=\"hidden\" name=\"pvid\" value=\"$id\">\n";
+    $tmenu = TemplateMenu($pv['ptid']);
+  } else {
+
+    // adding a pattern view
+    
+    $title = 'Add Pattern View';
+    $name_value = $notes_value = $delete = '';
+    $tmenu = TemplateMenu();
+  }
+  print "<h2>$title</h2>
+
+<p>A pattern view is code for an HTML page in which strings of the form
+<code>%%<feature-name>%%</code> are replaced with the value of that
+feature for a pattern when it is displayed. We will be expanding this
+primitive layout language soon to support other features, such as
+hiding feature lables for patterns that lack an associated value.</p>
+
+<p>Each pattern view has an associated pattern template which
+determines which features might be defined for a pattern used with the
+view.<p>
+
+<p>You can use the text area to enter a pattern view, or you can upload
+a file. If you upload a file we will ignore any input in the <code>Layout</code>
+textarea.</p>
+
+<form enctype=\"multipart/form-data\" action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\">
+ <input type=\"hidden\" name=\"pv\" value=\"absorb_pv\">
+ $context
+
+ <div class=\"fname\">Pattern view name:</div>
+ <div><input type=\"text\" name=\"name\"$name_value\"></div>
+
+ <div class=\"fname\">Notes:</div>
+ <div>
+  <textarea name=\"notes\" rows=\"3\" cols=\"80\">$notes_value</textarea>
+ </div>
+
+ <div class=\"fname\">Pattern template:</div>
+ <div>$tmenu</div>
+ 
+ <div class=\"fname\">Layout file:</div>
+ <div><input name=\"layout\" type=\"file\"></div>
+
+ <div class=\"fname\">Layout:</div>
+ <div>
+  <textarea name=\"layout\" rows=\"3\" cols=\"80\">$layout_value</textarea>
+ </div>
+
+ <div class=\"fsub\">
+  <input type=\"submit\" name=\"submit\" value=\"Accept\" id=\"accept\">
+  $delete
+  <input type=\"submit\" name=\"submit\" value=\"Cancel\">
+ </div>
+";
+
+} /* end PVForm() */
+
+
+/* AbsorbPV()
+ *
+ *  Absorb a new pattern view or edits of an existing one.
+ *
+ *  We don't require that a layout be provided, though a pattern view
+ *  without one is useless. If one is provided, we perform a simple
+ *  validation check: are there feature tokens present in the layout
+ *  that aren't in the template. If so, we warn but accept.
+ */
+
+function AbsorbPV() {
+
+  # check the name
+  
+  CheckIdentifier($name = $_REQUEST['name'], true);
+
+  # get the template
+  
+  if(!isset($_REQUEST['template_id']) || !($ptid = $_REQUEST['template_id']))
+    Error('Select a pattern template');
+  $pt = GetTemplate($ptid = $_REQUEST['template_id']);
+  if(!$pt)
+    Error('No such pattern template');
+
+  # get the layout
+
+  if(($file = $_FILES['layout']) && !$file['error']) {
+    if($file['size'] > MAXIMAGE)
+      Error('Layout file size exceeds maximum accepted of ' . MAXIMAGE . ' bytes');
+    $layout = file_get_contents($file['tmp_name']);
+  }
+  elseif(isset($_REQUEST['layout']))
+    $layout = $_REQUEST['layout'];
+
+  if($layout && strlen($layout))
+    ValidateView($layout, $pt);
+
+  if(isset($_REQUEST['pvid'])) {
+
+    # working on an update
+    
+    $pvid = $_REQUEST['pvid'];
+    $pv = GetPV('id', $pvid);
+    if(!$pv)
+      Error('No such pattern view found');
+    $update = ['id' => $pvid];
+    if($pv['name'] != $name)
+      $update['name'] = $name;
+    if($pv['ptid'] != $ptid)
+      $update['ptid'] = $ptid;
+    if($pv['layout'] != $layout)
+      $update['layout'] = $layout;
+    UpdatePV($update);
+  } else {
+    $insert = [
+      'ptid' => $ptid,
+      'name' => $name,
+    ];
+    if(strlen($layout))
+      $insert['layout'] = $layout;
+    InsertPV($insert);
+  }
+
+} /* end AbsorbPV() */
+
+
+/* ValidateView()
+ *
+ *  Warn about detected problems in the pattern view.
+ */
+
+function ValidateView($layout, $template) {
+  $tokens = [];
+
+  $offset = 0;
+  while(preg_match('/%%([^%]+)%%/', $layout, $matches, PREG_OFFSET_CAPTURE, $offset)) {
+    $token = $matches[1][0];
+    $tokens[$token] = $token;
+    $offset = $matches[1][1] + strlen($token) + 2;
+  }
+
+  # Find feature tokens found/not found in the template.
+
+  $features = $template['features'];
+  $found = [];
+  $orphans = [];
+  foreach($tokens as $token)
+    if(array_key_exists($token, $features))
+      $found[$token] = true;
+    else
+      $orphans[$token] = true;
+
+  $status = true;
+  if(count($found)) {
+    Alert("These feature tags found in the layout are in the template: <code>" .
+      implode('</code> , <code>', $tokens) . '</code>');
+  }
+  if(count($orphans)) {
+    Alert("These feature tags found in the layout are not in the template: <code>" .
+      implode('</code> , <code>', $orphans) . '</code>');
+    $status = false;
+  }
+  return $status;
+  
+} /* end ValidateView() */
+
+
 ?>
 <!doctype html>
 <html lang="en">
@@ -1271,7 +1503,9 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
   
   $action = $_REQUEST['pattern'];
 
-  if($action == 'edit') {
+  if($action == 'view') {
+    Error('Not implemented');
+  } elseif($action == 'edit') {
 
     # editing an existing pattern
 
@@ -1395,9 +1629,36 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
   }
 } elseif(isset($_REQUEST['pv'])) {
 
-  # pattern view actions
-
-  Error('not implemented');
+  // All actions Pattern View.
+  
+  if($_REQUEST['pv'] == 'edit') {
+    if(isset($_REQUEST['pvid'])) {
+      $pvid = $_REQUEST['pvid'];
+      if(!$pvid)
+        Error('You failed to select a pattern view');
+      PVForm($pvid);
+      $SuppressMain = true;
+    } else {
+      SelectPV([
+        'label' => 'Edit Pattern View',
+	'context' => 'pv',
+	'action' => 'edit',
+	'submit' => [
+	  [
+	    'label' => 'Select',
+	    'id' => 'metadata'
+	  ]
+        ]
+      ]);
+      $SuppressMain = true;
+    }
+  }
+  elseif($_REQUEST['pv'] == 'add') {
+    PVForm();
+    $SuppressMain = true;
+  } elseif($_REQUEST['pv'] == 'absorb_pv') {
+    AbsorbPV();
+  }
   
 } elseif(isset($_REQUEST['pl'])) {
 
@@ -1618,6 +1879,7 @@ if(!$SuppressMain) {
 <ul>
  <li><a href="?pattern=add">Create a pattern</a></li>
  <li><a href="?pattern=edit">Edit a pattern</a></li>
+ <li><a href="?pattern=view">View a pattern</a></li>
 </ul>
 
 <h2>Pattern Languages</h2>
