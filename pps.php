@@ -81,7 +81,7 @@ define('UPERROR', array(
   3 => 'partial upload',
   NOFILE => 'no file selected'
 ));
-
+define('TOKENMATCH', '/%%([^%]+)%%/');
 
 /* DataStoreConnect()
  *

@@ -703,14 +703,6 @@ pattern with that view.</p>
     print "</ul>
  <a href=\"./\">Continue</a>.
 ";
-  } elseif(isset($_REQUEST['pvid'])) {
-
-    # pattern and view have been selected; display pattern
-    
-    $pvid = $_REQUEST['pvid'];
-    $pid = $_REQUEST['pid'];
-    Alert("Would display pattern with id $pid using view with id $pvid");
-    $SuppressMain = true;
     
   } else {
 
@@ -751,6 +743,32 @@ can be selected.</p>
   }
 
 } /* end ViewPattern() */
+
+
+/* DisplayPattern()
+ *
+ *  Render this pattern with this pattern view.
+ */
+
+function DisplayPattern($pattern, $pv) {
+  $layout = $pv['layout'];
+  $features = $pattern['features'];
+
+  # Loop on the layout string, replacing tokens with values, until the
+  # last token is replaced.
+
+  while(preg_match(TOKENMATCH, $layout, $matches, 0)) {
+    $token = $matches[1];
+    $tmatch = $matches[0];
+    $fv = $features[$token]['value'];
+    $layout = str_replace($tmatch, $fv, $layout);
+  }
+  # Display it.
+  
+  print $layout;
+  exit();
+  
+} /* end DisplayPattern() */
 
 
 /* ManageFeatures()
@@ -1526,7 +1544,8 @@ function ValidateView($layout, $template) {
   $tokens = [];
 
   $offset = 0;
-  while(preg_match('/%%([^%]+)%%/', $layout, $matches, PREG_OFFSET_CAPTURE, $offset)) {
+  while(preg_match(TOKENMATCH, $layout, $matches, PREG_OFFSET_CAPTURE,
+        $offset)) {
     $token = $matches[1][0];
     $tokens[$token] = $token;
     $offset = $matches[1][1] + strlen($token) + 2;
@@ -1558,6 +1577,16 @@ function ValidateView($layout, $template) {
 } /* end ValidateView() */
 
 
+if($_REQUEST['pattern'] == 'view' && isset($_REQUEST['pvid'])) {
+
+  // If we are displaying a pattern, do it before any other output.
+
+  if(!($pv = GetPV('id', $_REQUEST['pvid'])))
+    Error('No such pattern view');
+  if(!($pattern = GetPattern($_REQUEST['pid'])))
+    Error('No such pattern');
+  DisplayPattern($pattern, $pv);
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -1622,7 +1651,10 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
       #  a pattern language selector
       
       $plid = isset($_REQUEST['plid']) ? $_REQUEST['plid'] : null;
-      ViewPattern(['plid' => $plid]);
+      if($plid)
+        ViewPattern(['plid' => $plid]);
+      else
+        ViewPattern([]);
     }
     $SuppressMain();
 
