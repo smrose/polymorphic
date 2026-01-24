@@ -1156,7 +1156,7 @@ function InsertPV($params) {
   $params['name'] = trim($params['name']);
   if(!strlen($params['name']))
     Error('Name of view may not be empty.');
-  if(GetPV(['name' => $params['name']]))
+  if(GetPV('name', $params['name']))
     Error("There is already a pattern view with name \"{$params['name']}\" and there cannot be two.");
   $sql = 'INSERT INTO pattern_view(name, notes, layout, ptid)
  VALUES(:name, :notes, :layout, :ptid)';

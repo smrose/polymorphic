@@ -8,6 +8,7 @@ var tsel
 var accept
 var accepta
 var featuresel
+var pvid
 
 
 /* post()
@@ -141,6 +142,28 @@ function hidei(event) {
 } // end hidei()
 
 
+/* setpv()
+ *
+ *  Set the 'href' attribute on each of a set of links to a URL that will
+ *  display the linked pattern using the selected view.
+ */
+
+function setpv(event) {
+    ps = document.querySelectorAll('#ice li a') // anchors on pattern titles
+    svalue = pvid.value // value of <SELECT>, a pattern_view.id value
+    if(svalue == 0)
+	for(p of ps)
+	    p.removeAttribute('href')
+    else {
+	for(p of ps) {
+	    id = p.dataset.id // a pattern.id value
+	    url = '?pattern=view&pvid=' + svalue + '&pid=' + id
+	    p.setAttribute('href', url)
+	}
+    }
+} // end setpv()
+
+
 /* init()
  *
  *  Called when page has loaded.
@@ -199,5 +222,13 @@ function init() {
       ilink.addEventListener('mouseenter', showi)
       ilink.addEventListener('mouseleave', hidei)
     }
+
+    /* The pattern view page includes a pattern_view <SELECT> element above
+     *  the list of patterns. Listen for 'change' events on that element.
+     *  setpv() will set the HREF attributes of <A> elements in the list
+     *  to use the selected pattern_view. */
+
+    if(pvid = document.querySelector('#pvid'))
+	pvid.addEventListener('change', setpv)
     
 } // end init()

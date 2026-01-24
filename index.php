@@ -653,6 +653,106 @@ template. Filter the pattern selection menu to those of a particular template, o
 } /* end SelectPattern() */
 
 
+/* ViewPattern()
+ *
+ *  View a pattern. There are these prerequite steps:
+ *
+ *   1. Select a pattern language.
+ *   2. Select a pattern view that shares the template with the language.
+ *   3. Click on a per-pattern link to generate the page.
+ */
+
+function ViewPattern($context) {
+
+  if(array_key_exists('plid', $context)) {
+
+    # Language has been selected, offer a set of links and a popup menu to
+    # choose a view.
+
+    $pl = GetPL($plid = $context['plid']);
+    $ptid = $pl['ptid'];
+    $pvs = GetPVs(['ptid' => $ptid]);
+    $pvsel = '<select name="pvid" id="pvid">
+ <option value=\"0\">Select a view</option>
+';
+    foreach($pvs as $pv)
+      $pvsel .= "<option value=\"{$pv['id']}\">{$pv['name']}</option>\n";
+    $pvsel .= '</select>
+';
+    $plmembers = GetPLMembers(['plid' => $plid]);
+    $titles = [];
+    foreach($plmembers as $plmember) {
+      $pattern = GetPattern($plmember['pid']);
+      $title = $pattern['features']['title']['value'];
+      $titles[] = ['id' => $pattern['id'], 'title' => $title];
+    }
+    usort($titles, 'bytitle');
+    print "<h2>View <em>{$pl['name']}</em> Patterns Using the Selected View</h2>
+
+<p>Select a pattern view, then click on a linked pattern title to view that
+pattern with that view.</p>
+
+<form class=\"featureform\" id=\"pview\">
+ <div class=\"fname\">Select a view:</div>
+ <div>$pvsel</div>
+</form>
+<ul id=\"ice\">\n";
+    foreach($titles as $title) {
+      print " <li><a target=\"_blank\" data-id=\"{$title['id']}\">{$title['title']}</a></li>\n";
+    }
+    print "</ul>
+ <a href=\"./\">Continue</a>.
+";
+  } elseif(isset($_REQUEST['pvid'])) {
+
+    # pattern and view have been selected; display pattern
+    
+    $pvid = $_REQUEST['pvid'];
+    $pid = $_REQUEST['pid'];
+    Alert("Would display pattern with id $pid using view with id $pvid");
+    $SuppressMain = true;
+    
+  } else {
+
+    # select a pattern language
+    
+    $pls = GetPLs();
+    $wpls = GetPLs(null, true);
+    $selpl = '<select name="plid">
+   <option value="0">Select pattern language</option>
+  ';
+    foreach($pls as $pl) {
+      $disabled = array_key_exists($pl['id'], $wpls)
+	? ''
+	: ' disabled="disabled"';
+      $selpl .= " <option value=\"{$pl['id']}\">{$pl['name']}</option>\n";
+    }
+    $selpl .= '</select>
+  ';
+    print "<h2>Select a pattern language</h2>
+
+<p>We will offer a set of links to patterns that are members of the pattern
+language you select below. Only pattern languages that have member patterns
+can be selected.</p>
+
+<form method=\"POST\" action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featureform\">
+ <input type=\"hidden\" name=\"pattern\" value=\"view\">
+
+ <div class=\"fname\">Select a pattern language:</div>
+ <div>$selpl</div>
+
+ <div class=\"fsub\">
+  <input type=\"submit\" name=\"submit\" value=\"Accept\">
+  <input type=\"submit\" name=\"submit\" value=\"Cancel\">
+ </div>
+
+</form>
+";
+  }
+
+} /* end ViewPattern() */
+
+
 /* ManageFeatures()
  *
  *  Manage features associated with this template.
@@ -1360,6 +1460,7 @@ function AbsorbPV() {
   # check the name
   
   CheckIdentifier($name = $_REQUEST['name'], true);
+  $notes = $_REQUEST['notes'];
 
   # get the template
   
@@ -1372,6 +1473,10 @@ function AbsorbPV() {
   # get the layout
 
   if(($file = $_FILES['layout']) && !$file['error']) {
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $file['tmp_name']);
+    if($mime != 'text/html')
+      Error("<code>{$file['name']}</code> doesn't seem to be an HTML file");
     if($file['size'] > MAXIMAGE)
       Error('Layout file size exceeds maximum accepted of ' . MAXIMAGE . ' bytes');
     $layout = file_get_contents($file['tmp_name']);
@@ -1402,6 +1507,7 @@ function AbsorbPV() {
     $insert = [
       'ptid' => $ptid,
       'name' => $name,
+      'notes' => $notes
     ];
     if(strlen($layout))
       $insert['layout'] = $layout;
@@ -1504,7 +1610,22 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
   $action = $_REQUEST['pattern'];
 
   if($action == 'view') {
-    Error('Not implemented');
+  
+    if(isset($_REQUEST['pid'])) {
+
+      # display this pattern using this view
+      
+      ViewPattern(['pid' => $_REQUEST['pid'], 'pvid' => $_REQUEST['pvid']]);
+    } else {
+
+      # if plid is set, show linked pattern titles and a view selector, else
+      #  a pattern language selector
+      
+      $plid = isset($_REQUEST['plid']) ? $_REQUEST['plid'] : null;
+      ViewPattern(['plid' => $plid]);
+    }
+    $SuppressMain();
+
   } elseif($action == 'edit') {
 
     # editing an existing pattern
