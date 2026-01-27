@@ -212,3 +212,10 @@ input[type=submit]:disabled {
     font-weight: bold;
     text-align: right;
 }
+.linklike {
+    color: #339;
+    text-decoration: underline;
+}
+.linklike:hover {
+    cursor: pointer;
+}

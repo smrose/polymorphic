@@ -1,3 +1,12 @@
+/* NAME
+ *
+ *  pps.js
+ *
+ * CONCEPT
+ *
+ *  JavaScript for the Polymorphic Pattern Project.
+ */
+
 var faformtype
 var faformname
 var selecttemplate
@@ -9,6 +18,54 @@ var accept
 var accepta
 var featuresel
 var pvid
+var penabled // when true, enable display of patterns
+var ps
+
+
+/* contain()
+ *
+ *  If penabled, handle a click on a pattern title by opening a container
+ *  window to display the pattern.
+ */
+
+function contain(e) {
+    if(!penabled)
+        return(false)
+    a = e.target
+    pid = a.dataset.id
+    window.open('viewpattern.php?pid=' + pid + '&pvid=' + pvid.value)
+    
+} // end contain()
+
+
+/* enablef()
+ *
+ *  Called to enable pattern links, which entaials setting penabled true and
+ *  making the pattern titles in the list look link-like.
+ */
+
+function enablef() {
+    if(!penabled) {
+        penabled = true
+        for(p of ps)
+            p.classList.toggle('linklike')
+    }
+} // end enablef()
+
+
+/* disablef()
+ *
+ *  Called to disable pattern links: set penabled false and style the
+ *  pattern titles to not look like links.
+ */
+
+function disablef() {
+    if(penabled) {
+        penabled = false
+        for(p of ps)
+            p.classList.toggle('linklike')
+    }
+} // end disablef()
 
 
 /* post()
@@ -21,6 +78,7 @@ function post(event) {
     document.querySelector('#posterior').style.display = 'grid'
 
 } // end post()
+
 
 /* files()
  *
@@ -144,29 +202,22 @@ function hidei(event) {
 
 /* setpv()
  *
- *  Set the 'href' attribute on each of a set of links to a URL that will
- *  display the linked pattern using the selected view.
+ *  Pattern view popup value has changed; enable or disable pattern display.
  */
 
 function setpv(event) {
-    ps = document.querySelectorAll('#ice li a') // anchors on pattern titles
     svalue = pvid.value // value of <SELECT>, a pattern_view.id value
     if(svalue == 0)
-	for(p of ps)
-	    p.removeAttribute('href')
-    else {
-	for(p of ps) {
-	    id = p.dataset.id // a pattern.id value
-	    url = '?pattern=view&pvid=' + svalue + '&pid=' + id
-	    p.setAttribute('href', url)
-	}
-    }
+        disablef()
+    else
+        enablef()
 } // end setpv()
 
 
 /* init()
  *
- *  Called when page has loaded.
+ *  Called when page has loaded. Primarily, the task is one of assigning
+ *  event listeners to elements that are in the page in specific contexts.
  */
 
 function init() {
@@ -176,12 +227,16 @@ function init() {
     selectpattern = document.querySelector('#selpat')
     accept = document.querySelector('#accept')
     accepta = document.querySelector('#accepta')
+    ps = document.querySelectorAll('#ice li a') // anchors on pattern titles
+    if(ps)
+        for(p of ps)
+            p.addEventListener('click', contain)
 
     if(selectpattern) {
-	if(pattern_id = document.querySelector('#pattern_id')) {
-	    pattern_id.addEventListener('input', spidf)
-	    spidf()
-	}
+        if(pattern_id = document.querySelector('#pattern_id')) {
+            pattern_id.addEventListener('input', spidf)
+            spidf()
+        }
     }
     if(selecttemplate) {
         if(template_id = document.querySelector('#template_id'))
@@ -229,6 +284,6 @@ function init() {
      *  to use the selected pattern_view. */
 
     if(pvid = document.querySelector('#pvid'))
-	pvid.addEventListener('change', setpv)
+        pvid.addEventListener('change', setpv)
     
 } // end init()

@@ -18,6 +18,8 @@
  *  AddPattern          add a pattern
  *  TemplateForm        present a form for adding or editing a template
  *  SelectPattern       select a pattern for editing
+ *  ViewPattern         manage selecting pattern for display
+ *  DisplayPattern      render a pattern
  *  ManageFeatures      manage features associated with a template
  *  ManagePatterns      manage pattern language members
  *  EatMe               members come and go - right here
@@ -29,7 +31,9 @@
  *  PLForm              present a form for adding/editing a pattern language
  *  SelectPL            select a pattern_language for editing
  *  SelectPV            select a pattern_view for editing
- *  PVForm              present a form for adding/editing a pattern view
+ *  PVForm              present a form for adding/editing a pattern_view
+ *  AbsorbPV            absorb new or edited pattern_view
+ *  ValidateView        warn about issues in a a pattern_view
  *
  * NOTES
  *
@@ -667,13 +671,14 @@ function ViewPattern($context) {
   if(array_key_exists('plid', $context)) {
 
     # Language has been selected, offer a set of links and a popup menu to
-    # choose a view.
+    # choose a view. A 'change' event handler on the popup menu controls
+    # whether the links are active, which requires a view be selected.
 
     $pl = GetPL($plid = $context['plid']);
     $ptid = $pl['ptid'];
     $pvs = GetPVs(['ptid' => $ptid]);
     $pvsel = '<select name="pvid" id="pvid">
- <option value=\"0\">Select a view</option>
+ <option value="0">Select a view</option>
 ';
     foreach($pvs as $pv)
       $pvsel .= "<option value=\"{$pv['id']}\">{$pv['name']}</option>\n";
@@ -697,9 +702,8 @@ pattern with that view.</p>
  <div>$pvsel</div>
 </form>
 <ul id=\"ice\">\n";
-    foreach($titles as $title) {
-      print " <li><a target=\"_blank\" data-id=\"{$title['id']}\">{$title['title']}</a></li>\n";
-    }
+    foreach($titles as $title)
+      print " <li><a data-id=\"{$title['id']}\">{$title['title']}</a></li>\n";
     print "</ul>
  <a href=\"./\">Continue</a>.
 ";
@@ -743,32 +747,6 @@ can be selected.</p>
   }
 
 } /* end ViewPattern() */
-
-
-/* DisplayPattern()
- *
- *  Render this pattern with this pattern view.
- */
-
-function DisplayPattern($pattern, $pv) {
-  $layout = $pv['layout'];
-  $features = $pattern['features'];
-
-  # Loop on the layout string, replacing tokens with values, until the
-  # last token is replaced.
-
-  while(preg_match(TOKENMATCH, $layout, $matches, 0)) {
-    $token = $matches[1];
-    $tmatch = $matches[0];
-    $fv = $features[$token]['value'];
-    $layout = str_replace($tmatch, $fv, $layout);
-  }
-  # Display it.
-  
-  print $layout;
-  exit();
-  
-} /* end DisplayPattern() */
 
 
 /* ManageFeatures()
@@ -1576,17 +1554,6 @@ function ValidateView($layout, $template) {
   
 } /* end ValidateView() */
 
-
-if($_REQUEST['pattern'] == 'view' && isset($_REQUEST['pvid'])) {
-
-  // If we are displaying a pattern, do it before any other output.
-
-  if(!($pv = GetPV('id', $_REQUEST['pvid'])))
-    Error('No such pattern view');
-  if(!($pattern = GetPattern($_REQUEST['pid'])))
-    Error('No such pattern');
-  DisplayPattern($pattern, $pv);
-}
 ?>
 <!doctype html>
 <html lang="en">
