@@ -221,16 +221,38 @@ function setpv(event) {
  */
 
 function init() {
-    accept = document.querySelector('#accept')
-    accepta = document.querySelector('#accepta')
     selecttemplate = document.querySelector('#selecttemplate')
     selectpattern = document.querySelector('#selpat')
-    accept = document.querySelector('#accept')
-    accepta = document.querySelector('#accepta')
-    ps = document.querySelectorAll('#ice li a') // anchors on pattern titles
-    if(ps)
+    accept = document.querySelector('#accept')   // submit button 1
+    accepta = document.querySelector('#accepta') // submit button 2
+    ps = document.querySelectorAll('#ice li a')  // anchors on pattern titles
+    if(ps.length)
         for(p of ps)
             p.addEventListener('click', contain)
+
+    if(document.querySelector('#patternform')) {
+
+        // the form for add/edit pattern is on page; manage submit buttons
+
+        rinputs = document.querySelectorAll('.rinput')
+        if(rinputs.length) {
+            for(rinput of rinputs)
+                rinput.addEventListener('input', pf)
+            pf()
+        }
+    }
+
+    if(selectfeature = document.querySelector('#selectfeature'))
+        if(feature_id = document.querySelector('#feature_id')) {
+            feature_id.addEventListener('input', sf)
+            sf()
+        }
+
+    if(tmeta = document.querySelector('#tmeta'))
+        if(tname = document.querySelector('#name')) {
+            tname.addEventListener('input', et)
+            et()
+        }
 
     if(selectpattern) {
         if(pattern_id = document.querySelector('#pattern_id')) {
@@ -287,3 +309,42 @@ function init() {
         pvid.addEventListener('change', setpv)
     
 } // end init()
+
+
+/* pf()
+ *
+ *  Control submit buttons on pattern add/edit form.
+ */
+
+function pf(e) {
+    rinputs = document.querySelectorAll('.rinput')
+    disable = false
+    for(rinput of rinputs)
+	if(rinput.value.length == 0)
+	    disable = true
+    accept.disabled = accepta.disabled = disable
+
+} // end pf()
+
+
+/* sf()
+ *
+ *  Control whether submit button on select-feature form is active.
+ */
+
+function sf(e) {
+    feature_id = document.querySelector('#feature_id')
+    accept.disabled = (feature_id.value == 0) ? true : false
+} // end sf()
+
+
+/* et()
+ *
+ *  Control whether submit button on template metadata form is active. It
+ *  will be if a non-empty name is present.
+ */
+
+function et(e) {
+    tname = document.querySelector('#name')
+    accepta.disabled = accept.disabled = (tname.value.length > 0) ? false : true
+} // end et()

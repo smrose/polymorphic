@@ -201,7 +201,7 @@ $submit
 
 function SelectFeature() {
   $features = GetFeatures();
-  $menu = '<select name="feature_id">
+  $menu = '<select name="feature_id" id="feature_id">
  <option value="0">Select feature</option>
 ';
   foreach($features as $feature) {
@@ -212,11 +212,11 @@ function SelectFeature() {
   print '<h2>Edit a Feature</h2>
 ';
 Alert("Select the feature you wish to edit.");
-print "<form method=\"POST\" action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featureform\">
+print "<form method=\"POST\" action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featureform\" id=\"selectfeature\">
 <input type=\"hidden\" name=\"feature\" value=\"edit\">
 <div>$menu<div>
 <div>
- <input type=\"submit\" name=\"submit\" value=\"Select\">
+ <input type=\"submit\" name=\"submit\" value=\"Select\" id=\"accept\">
  <input type=\"submit\" name=\"submit\" value=\"Cancel\">
 <div>
 </form>
@@ -257,14 +257,14 @@ function PatternForm($action, $id) {
 ';
     Alert("Adding a pattern with template <code>{$template['name']}</code>");
     $submit = ' <input type="submit" name="submit" value="Accept" id="accept">
- <input type="submit" name="submit" value="' . ANOTHER . '">
+ <input type="submit" id="accepta" name="submit" value="' . ANOTHER . '">
 ';
   }
 print "$note
 
 <p>Required features are displayed <span class=\"required\">like this</span>.</p>
 
-<form enctype=\"multipart/form-data\" action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featureform\" method=\"POST\">
+<form enctype=\"multipart/form-data\" action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featureform\" method=\"POST\" id=\"patternform\">
  <div class=\"fh\">Feature name</div>
  <div class=\"fh\">Value</div>
 <input type=\"hidden\" name=\"pattern\" value=\"$action\">
@@ -302,12 +302,13 @@ $context
 
       $remove = '';
       $value = '';
+      $iclass = $feature['required'] ? ' class="rinput"' : '';
       if(isset($feature['value'])) {
         $value = " value=\"{$feature['value']}\"";
         if(!$feature['required'])
           $remove = "<input type=\"checkbox\" name=\"d-{$feature['name']}\" tite=\"remove\">";
       }
-      $input = "<input name=\"f-{$feature['name']}\" type=\"text\" size=\"80\"$value>$remove\n";
+      $input = "<input name=\"f-{$feature['name']}\" type=\"text\" size=\"80\"$value$iclass>$remove\n";
 
     } elseif($feature['type'] == 'image') {
 
@@ -360,9 +361,9 @@ $context
     } else {
       Error("Unrecognized feature type <code>{$feature['type']}</code>");
     }
-    $class = ($feature['required']) ? 'fname required' : 'fname';
+    $lclass = ($feature['required']) ? 'fname required' : 'fname';
 
-    print " <div class=\"$class\">{$feature['name']} ({$feature['type']}):</div>
+    print " <div class=\"$lclass\">{$feature['name']} ({$feature['type']}):</div>
  <div>{$input}{$ilink}</div>
 ";
     if($feature['type'] == 'image')
@@ -572,12 +573,12 @@ function TemplateForm($id = null) {
     $delete = '';
   }
 
-  print "<form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\">
+  print "<form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\" id=\"tmeta\">
  <input type=\"hidden\" name=\"template\" value=\"absorb_template\">
  $idf
 
  <div class=\"fname\">Template name:</div>
- <div><input type=\"text\" name=\"name\"$name_value\"></div>
+ <div><input type=\"text\" id=\"name\" name=\"name\"$name_value\"></div>
 
  <div class=\"fname\">Notes:</div>
  <div>
@@ -585,7 +586,7 @@ function TemplateForm($id = null) {
  </div>
 
  <div class=\"fsub\">
-  <input type=\"submit\" name=\"submit\" value=\"Accept and add features\">
+  <input type=\"submit\" name=\"submit\" value=\"Accept and add features\" id=\"accepta\">
   <input type=\"submit\" name=\"submit\" value=\"Accept\" id=\"accept\">
   $delete
   <input type=\"submit\" name=\"submit\" value=\"Cancel\">
