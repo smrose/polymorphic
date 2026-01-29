@@ -38,7 +38,16 @@ function DisplayPattern($pattern, $pv) {
   while(preg_match(TOKENMATCH, $layout, $matches, 0)) {
     $token = $matches[1];
     $tmatch = $matches[0];
-    $fv = $features[$token]['value'];
+    $feature = $features[$token];
+    $ft = $feature['type'];
+    if($ft == 'image') {
+    
+      // what we have is a hash, which needs to be converted to a URL
+
+      $fv = ImagePath($feature['hash']);
+    } else {
+        $fv = $feature['value'];
+    }
     $layout = str_replace($tmatch, $fv, $layout);
   }
   # Display it.
@@ -54,7 +63,7 @@ $pattern = GetPattern($pid = $_REQUEST['pid']);
 $action = $_REQUEST['pattern'];
 
 if(!$pv || !$pattern)
-  print '<!doctype html>
+  print '<!DOCTYPE html>
 <html>
 <head>
  <title>System Error</title>
@@ -79,7 +88,7 @@ if($_REQUEST['action'] == 'view') {
   $url = "?action=view&pid=$pid&pvid=$pvid";
   $title = $pattern['features']['title']['value'];
 ?>
-<!doctype html>
+<!DOCTYPE html>
 <html>
   <head>
     <title><?=$title?></title>

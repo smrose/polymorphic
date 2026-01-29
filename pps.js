@@ -139,7 +139,9 @@ function faformtypef() {
 
 function mfaformf() {
     submitState = featuresel.value != "0"
-    accept.disabled = accepta.disabled = !submitState
+    accept.disabled = !submitState
+    if(accepta)
+	accepta.disabled = !submitState
     
 } /* end mfaformf() */
 
@@ -322,7 +324,9 @@ function pf(e) {
     for(rinput of rinputs)
 	if(rinput.value.length == 0)
 	    disable = true
-    accept.disabled = accepta.disabled = disable
+    accept.disabled = disable
+    if(accepta)
+        accepta.disabled = disable
 
 } // end pf()
 
@@ -346,5 +350,8 @@ function sf(e) {
 
 function et(e) {
     tname = document.querySelector('#name')
-    accepta.disabled = accept.disabled = (tname.value.length > 0) ? false : true
+    submitstate = (tname.value.length > 0) ? false : true
+    accept.disabled = submitstate
+    if(accepta)
+	accepta.disabled = submitstate
 } // end et()

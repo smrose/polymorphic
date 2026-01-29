@@ -333,10 +333,7 @@ $context
          *  add a checkbox to delete the feature
          */
 
-        $ipath = IMAGEROOT . '/';
-        for($i = 0; $i < IDEPTH; $i++)
-          $ipath .= substr($feature['hash'], $i, 1) . '/';
-        $ipath .= $feature['hash'];
+	$ipath = ImagePath($feature['hash']);
         $ilink = "<span class=\"ilink\" id=\"l-{$feature['hash']}\" title=\"{$feature['filename']}\">&nbsp;preview&nbsp;</span><span class=\"rbox\"><input type=\"checkbox\" name=\"d-{$feature['name']}\">remove</span>";
         $imgs .= "<div class=\"imagebox\" id=\"i-{$feature['hash']}\"><img src=\"$ipath\">
  <div id=\"imagemeta\">
@@ -1530,33 +1527,45 @@ function ValidateView($layout, $template) {
     $offset = $matches[1][1] + strlen($token) + 2;
   }
 
-  # Find feature tokens found/not found in the template.
+  # Find feature tokens found/not found in the template and features found in
+  # the template not used in the layout.
 
   $features = $template['features'];
   $found = [];
   $orphans = [];
+  $unused = [];
   foreach($tokens as $token)
     if(array_key_exists($token, $features))
       $found[$token] = true;
     else
       $orphans[$token] = true;
+  foreach($features as $feature) {
+    if(!array_key_exists($feature['name'], $tokens))
+      $unused[$feature['name']] = $feature['name'];
+  }
+
+  # Report on token usage.
 
   $status = true;
   if(count($found)) {
-    Alert("These feature tags found in the layout are in the template: <code>" .
+    Alert("These feature tags found in the layout are in the <code>{$template['name']}</code> template: <code>" .
       implode('</code> , <code>', $tokens) . '</code>');
   }
   if(count($orphans)) {
-    Alert("These feature tags found in the layout are not in the template: <code>" .
+    Alert("These feature tags found in the layout are not in the <code>{$template['name']}</code> template: <code>" .
       implode('</code> , <code>', $orphans) . '</code>');
     $status = false;
+  }
+  if(count($unused)) {
+    Alert("These feature tags found in the <code>{$template['name']}</code> template are not used in the layout: <code>" .
+      implode('</code> , <code>', $unused) . '</code>');
   }
   return $status;
   
 } /* end ValidateView() */
 
 ?>
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -1624,7 +1633,7 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
       else
         ViewPattern([]);
     }
-    $SuppressMain();
+    $SuppressMain = true;
 
   } elseif($action == 'edit') {
 
