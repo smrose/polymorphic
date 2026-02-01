@@ -30,6 +30,9 @@ CREATE TABLE IF NOT EXISTS pattern_template (
   modified timestamp NOT NULL DEFAULT current_timestamp()
    ON UPDATE current_timestamp()
 );
+INSERT INTO pattern_template(name, notes)
+  VALUES ('All features',
+          'All features are automatically available in this template');
 --
 -- 'pattern'
 --
