@@ -333,7 +333,7 @@ $context
          *  add a checkbox to delete the feature
          */
 
-	$ipath = ImagePath($feature['hash']);
+        $ipath = ImagePath($feature['hash']);
         $ilink = "<span class=\"ilink\" id=\"l-{$feature['hash']}\" title=\"{$feature['filename']}\">&nbsp;preview&nbsp;</span><span class=\"rbox\"><input type=\"checkbox\" name=\"d-{$feature['name']}\">remove</span>";
         $imgs .= "<div class=\"imagebox\" id=\"i-{$feature['hash']}\"><img src=\"$ipath\">
  <div id=\"imagemeta\">
@@ -717,8 +717,8 @@ pattern with that view.</p>
   ';
     foreach($pls as $pl) {
       $disabled = array_key_exists($pl['id'], $wpls)
-	? ''
-	: ' disabled="disabled"';
+        ? ''
+        : ' disabled="disabled"';
       $selpl .= " <option value=\"{$pl['id']}\">{$pl['name']}</option>\n";
     }
     $selpl .= '</select>
@@ -1084,9 +1084,9 @@ function AbsorbPatternUpdate() {
        } else {
         if($feature['type'] == 'string' || $feature['type'] == 'text') {
           if(strlen($v))
-            $insert[] = ['name' => $name, 'value' => $v];
+            $insert[] = ['fname' => $name, 'value' => $v];
              } else  
-          $insert[] = ['name' => $name, 'value' => $v];
+          $insert[] = ['fname' => $name, 'value' => $v];
       }
     }
   } # end loop on features in form
@@ -1402,9 +1402,9 @@ hiding feature lables for patterns that lack an associated value.</p>
 determines which features might be defined for a pattern used with the
 view.<p>
 
-<p>You can use the text area to enter a pattern view, or you can upload
-a file. If you upload a file we will ignore any input in the <code>Layout</code>
-textarea.</p>
+<p>You can use the text area to enter a pattern view, or you can
+upload a file. If you upload a file we will ignore any input in the
+<code>Layout</code> textarea.</p>
 
 <form enctype=\"multipart/form-data\" action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\">
  <input type=\"hidden\" name=\"pv\" value=\"absorb_pv\">
@@ -1771,13 +1771,13 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
     } else {
       SelectPV([
         'label' => 'Edit Pattern View',
-	'context' => 'pv',
-	'action' => 'edit',
-	'submit' => [
-	  [
-	    'label' => 'Select',
-	    'id' => 'metadata'
-	  ]
+        'context' => 'pv',
+        'action' => 'edit',
+        'submit' => [
+          [
+            'label' => 'Select',
+            'id' => 'metadata'
+          ]
         ]
       ]);
       $SuppressMain = true;
@@ -1805,7 +1805,7 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
           $SuppressMain = 1;
         } elseif($_REQUEST['submit'] == 'Manage patterns') {
           ManagePatterns($plid);
-	  $SuppressMain = true;
+          $SuppressMain = true;
         } elseif(isset($_REQUEST['action']) &&
                  $_REQUEST['action'] == 'rmpatterns') {
           true;
@@ -1820,17 +1820,17 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
       SelectPL([
         'label' => 'Edit Pattern Language',
         'context' => 'pl',
-	'action' => 'edit',
-	'submit' => [
-	  [
-	    'label' => 'Edit metadata',
-	    'id' => 'metadata',
-	  ],
-	  [
-	    'id' => 'plsel',
-	    'label' => 'Manage patterns'
-	  ]
-	],
+        'action' => 'edit',
+        'submit' => [
+          [
+            'label' => 'Edit metadata',
+            'id' => 'metadata',
+          ],
+          [
+            'id' => 'plsel',
+            'label' => 'Manage patterns'
+          ]
+        ],
       ]);
       $SuppressMain = true;
     }
@@ -1847,28 +1847,28 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
         Alert('Deleted pattern language');
       } else {
         CheckIdentifier($_REQUEST['name'], true);
-	if(UpdatePL([
-	    'id' => $plid,
-	    'ptid' => $_REQUEST['template_id'],
-	    'name' => $_REQUEST['name'],
-	    'notes' => $_REQUEST['notes']
-	  ]))
-	  Alert("Pattern language <code>{$_REQUEST['name']}</code> updated.");
+        if(UpdatePL([
+            'id' => $plid,
+            'ptid' => $_REQUEST['template_id'],
+            'name' => $_REQUEST['name'],
+            'notes' => $_REQUEST['notes']
+          ]))
+          Alert("Pattern language <code>{$_REQUEST['name']}</code> updated.");
         else
-	  Alert("No update to pattern language <code>{$_REQUEST['name']}</code>.");
+          Alert("No update to pattern language <code>{$_REQUEST['name']}</code>.");
       }
     } else {
         CheckIdentifier($_REQUEST['name'], true);
-	$pl = InsertPL([
-	  'name' => $_REQUEST['name'],
-	  'notes' => $_REQUEST['notes'],
-	  'ptid' => $_REQUEST['template_id']
-	]);
-	Alert("Inserted pattern language <code>{$_REQUEST['name']}</code> (id <code>{$pl['id']}</code>).");
-	if($_REQUEST['submit'] == ADDPATTERNS) {
-	  ManagePatterns($pl['id']);
-	  $SuppressMain = true;
-	}
+        $pl = InsertPL([
+          'name' => $_REQUEST['name'],
+          'notes' => $_REQUEST['notes'],
+          'ptid' => $_REQUEST['template_id']
+        ]);
+        Alert("Inserted pattern language <code>{$_REQUEST['name']}</code> (id <code>{$pl['id']}</code>).");
+        if($_REQUEST['submit'] == ADDPATTERNS) {
+          ManagePatterns($pl['id']);
+          $SuppressMain = true;
+        }
     }
   }
 

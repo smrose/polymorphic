@@ -154,8 +154,11 @@ function mfaformf() {
 
 function stidf() {
     submitState = (template_id.value != "0")
+    submitState2 = (template_id.value > 1)
     if(metadata)
-        metadata.disabled = features.disabled = ! submitState
+        metadata.disabled = ! submitState
+    if(features)
+	features.disabled = ! submitState2
     if(tsel)
         tsel.disabled = ! submitState
 

@@ -82,6 +82,8 @@ define('UPERROR', array(
   NOFILE => 'no file selected'
 ));
 define('TOKENMATCH', '/%%([^%]+)%%/');
+define('ALLFEATURES', 1);
+
 
 /* DataStoreConnect()
  *
@@ -861,6 +863,11 @@ function InsertFeature($params) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
+
+  # Insert a pt_feature record for the all-features template.
+
+  InsertTemplateFeature(1, $feature['id']);
+
   return $feature;
  
 } /* end InsertFeature() */
@@ -933,6 +940,9 @@ function GetTemplateFeature($id) {
 /* DeleteTemplateFeature()
  *
  *  Remove a pt_feature record as well as any associated values.
+ *
+ *  This isn't as dramatic as removing a pattern_feature - there,
+ *  we are also dropping a table.
  */
 
 function DeleteTemplateFeature($template_id, $feature_id) {
@@ -943,40 +953,21 @@ function DeleteTemplateFeature($template_id, $feature_id) {
     Error("Feature $feature_id not found.");
   $tblname = "pf_{$feature['name']}";
   
-  $pdo->beginTransaction();
-
   # Remove any values from the associated feature values table that
   # are associated with this template.
 
   try {
+    $pdo->beginTransaction();
     $sth = $pdo->prepare("DELETE FROM $tblname WHERE id IN
  (SELECT v.id FROM $tblname v JOIN pattern p ON v.pid = p.id WHERE ptid = ?)");
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $sth->execute([$template_id]);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-
-  # Remove the pt_feature record for this template and feature.
-  
-  try {
     $sth = $pdo->prepare('DELETE FROM pt_feature WHERE fid = ? AND ptid = ?');
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $sth->execute([$feature_id, $template_id]);
+    $pdo->commit();
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
-  $pdo->commit();
 
 } /* end DeleteTemplateFeature() */
 
@@ -1039,33 +1030,17 @@ function DeleteFeature($feature_id) {
     Error("Feature $feature_id not found.");
   $tblname = "pf_{$feature['name']}";
   
-  $pdo->beginTransaction();
   try {
+    $pdo->beginTransaction();
     $sth = $pdo->prepare('DELETE FROM pt_feature WHERE fid = ?');
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $sth->execute([$feature_id]);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $sth = $pdo->prepare('DELETE FROM pattern_feature WHERE id = ?');
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $sth->execute([$feature_id]);
+    $pdo->exec("DROP TABLE $tblname"); # DROP TABLE performs commit
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
-  $pdo->exec("DROP TABLE $tblname");
-  $pdo->commit();
 
 } /* end DeleteFeature() */
 
