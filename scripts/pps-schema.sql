@@ -8,9 +8,6 @@
 --  Create a pps MySQL database and user to implement a "polymorphic" Pattern Sphere
 --  schema.
 --
--- $Id: pps-schema.sql,v 1.1 2025/12/31 13:02:56 rose Exp rose $
-
---
 -- create the database and user
 --
 CREATE DATABASE IF NOT EXISTS pps
@@ -32,7 +29,7 @@ CREATE TABLE IF NOT EXISTS pattern_template (
 );
 INSERT INTO pattern_template(name, notes)
   VALUES ('All features',
-          'All features are automatically available in this template');
+          'All pattern features are automatically available in this template');
 --
 -- 'pattern'
 --
@@ -60,13 +57,11 @@ INSERT INTO language(code, description) VALUES('en', 'US English');
 --
 CREATE TABLE IF NOT EXISTS pattern_language (
   id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  ptid int unsigned NOT NULL,
   name varchar(255) NOT NULL UNIQUE,
   notes varchar(16383),
   created timestamp NOT NULL DEFAULT current_timestamp(),
   modified timestamp NOT NULL DEFAULT current_timestamp()
-   ON UPDATE current_timestamp(),
-  CONSTRAINT FOREIGN KEY(ptid) REFERENCES pattern_template(id)
+   ON UPDATE current_timestamp()
 );
 --
 -- 'pattern_feature' defines a feature, which has an id, name, data
@@ -88,7 +83,6 @@ CREATE TABLE IF NOT EXISTS pattern_feature (
 -- pt_feature associates features with a template
 --
  CREATE TABLE IF NOT EXISTS pt_feature (
-  id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
   ptid int unsigned NOT NULL,
   fid int unsigned NOT NULL,
   created timestamp NOT NULL DEFAULT current_timestamp(),
@@ -101,7 +95,7 @@ CREATE TABLE IF NOT EXISTS pattern_feature (
    ON DELETE CASCADE
  );
 --
--- 'plmember' links patterns to a language
+-- 'plmember' links patterns to a language, a 1:n relationship
 --
 CREATE TABLE IF NOT EXISTS plmember (
   pid int unsigned NOT NULL,

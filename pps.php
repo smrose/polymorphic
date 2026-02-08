@@ -120,11 +120,6 @@ function CountPatterns($ptid) {
   $query = 'SELECT count(*) FROM pattern p WHERE ptid = ?';
   try {
     $sth = $pdo->prepare($query);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute([$ptid]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -162,14 +157,10 @@ function GetPatterns($which = null) {
 
   try {
     $sth = $pdo->prepare($query);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-        exit();
-  }
-  try {
     $rv = $sth->execute($u);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
   }
   $patterns = [];
   while($pattern = $sth->fetch())
@@ -197,11 +188,6 @@ function GetPattern($id) {
 
   try {
     $sth = $pdo->prepare('SELECT * FROM pattern WHERE id = ?');
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
-    exit();
-  }
-  try {
     $sth->execute([$id]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
@@ -220,14 +206,9 @@ function GetPattern($id) {
  WHERE ptf.ptid = (SELECT ptid FROM pattern WHERE id = ?)";
   try {
     $sth = $pdo->prepare($query);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
-    exit();
-  }
-  try {
     $sth->execute([$id]);
   } catch(PDOException $e) {
-    echo __FILE__, ' ', __LINE__, ' ', $e->getMessage(), ' ', $e->getCode();
+    echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
     exit();
   }
   $features = [];
@@ -240,14 +221,9 @@ function GetPattern($id) {
     $query = "SELECT * FROM pf_{$feature['name']} WHERE pid = ?";
     try {
       $sth = $pdo->prepare($query);
-    } catch(PDOException $e) {
-      echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
-      exit();
-    }
-    try {
       $sth->execute([$id]);
     } catch(PDOException $e) {
-      echo __FILE__, ' ', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+      echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
       exit();
     }
     if($v = $sth->fetch()) {
@@ -287,11 +263,6 @@ function InsertPattern($notes, $template_id) {
   $query = 'INSERT INTO pattern (ptid, notes) VALUES(?, ?)';
   try {
     $sth = $pdo->prepare($query);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $sth->execute([$template_id, $notes]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -310,7 +281,13 @@ function InsertPattern($notes, $template_id) {
 function DeletePL($id) {
   global $pdo;
   
-  Error('Not implemented');
+  try {
+    $sth = $pdo->prepare('DELETE FROM pattern_language WHERE id = ?');
+    return($sth->execute([$id]));
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
+  }
 } /* end DeletePL() */
 
 
@@ -361,8 +338,7 @@ function GetPL($id, $withpatterns = null) {
  *
  *  Return the selected pattern_language records.
  *
- *  If $withpatterns is true, only return pattern languages using pattern
- *  templates that have patterns using that template.
+ *  If $withpatterns is true, only return pattern languages that have patterns.
  */
 
 function GetPLs($which = null, $withpatterns = null) {
@@ -385,24 +361,16 @@ function GetPLs($which = null, $withpatterns = null) {
   if(isset($withpatterns))
     $query = "SELECT pl.*, count(*) AS pcount
  FROM pattern_language pl
-  JOIN pattern_template pt ON pl.ptid = pt.id
-  JOIN pattern p ON p.ptid = pt.id
- $q
- GROUP BY p.ptid";
+  JOIN plmember plm ON plm.plid = pl.id
+ $q";
   else
     $query = "SELECT * FROM pattern_language $q";
 
   try {
     $sth = $pdo->prepare($query);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute($u);
   } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
   $pls = [];
@@ -451,18 +419,12 @@ function GetPVs($which = null) {
 
   try {
     $sth = $pdo->prepare($query);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute($u);
   } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
-  $pls = [];
+  $pvs = [];
   while($pv = $sth->fetch())
     $pvs[$pv['id']] = $pv;
   return $pvs;
@@ -499,15 +461,9 @@ function GetTemplates($which = null) {
   $query = "SELECT *, 0 AS pcount, 0 AS fcount FROM pattern_template $q";
   try {
     $sth = $pdo->prepare($query);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute($u);
   } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', $e->getCode();
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
   $templates = [];
@@ -523,14 +479,9 @@ function GetTemplates($which = null) {
 
   try {
     $sth = $pdo->prepare($query);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute($u);
   } catch(PDOException $e) {
-    echo __FILE__, ':',  __LINE__, ' ', $e->getMessage(), ' ', $e->getCode();
+    echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
     exit();
   }
   while($count = $sth->fetch())
@@ -544,14 +495,9 @@ function GetTemplates($which = null) {
 
   try {
     $sth = $pdo->prepare($query);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute($u);
   } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', $e->getCode();
+    echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
     exit();
   }
   while($count = $sth->fetch())
@@ -574,11 +520,6 @@ function GetTemplate($id) {
   $query = 'SELECT * FROM pattern_template WHERE id = ?';
   try {
     $sth = $pdo->prepare($query);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute([$id]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -612,11 +553,6 @@ function UpdateTemplate($update) {
   $sql = "UPDATE pattern_template SET $q WHERE id = :id";
   try {
     $sth = $pdo->prepare($sql);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $sth->execute($update);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -637,11 +573,6 @@ function DeleteTemplate($template_id) {
   # delete pt_feature records ("on delete cascade" should have been used...)
   try {
     $sth = $pdo->prepare('DELETE FROM pt_feature WHERE ptid = ?');
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute([$template_id]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -650,11 +581,6 @@ function DeleteTemplate($template_id) {
   # delete pattern records ("on delete cascade" should have been used...)
   try {
     $sth = $pdo->prepare('DELETE FROM pattern WHERE ptid = ?');
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute([$template_id]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -663,11 +589,6 @@ function DeleteTemplate($template_id) {
   # finally, delete the pattern_template
   try {
     $sth = $pdo->prepare('DELETE FROM pattern_template WHERE id = ?');
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute([$template_id]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -695,11 +616,6 @@ function GetPTFeatures($template_id) {
 
  try {
     $sth = $pdo->prepare($sql);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $sth->execute([$template_id]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -734,6 +650,24 @@ function GetPTFcount($template_id, $feature) {
 } /* end GetPTFcount() */
 
 
+/* PTFs()
+ *
+ *  For all pt_feature records, return the feature and template names and ids as well
+ *  as the feature type.
+ */
+
+function PTFs() {
+  global $pdo;
+  
+  $sth = $pdo->query('SELECT pf.name AS fname, pf.type AS ftype, pt.name AS tname, pt.id AS tid, pf.id AS fid
+   FROM pt_feature ptf
+    JOIN pattern_template pt ON ptf.ptid = pt.id
+    JOIN pattern_feature pf ON ptf.fid = pf.id');
+  return($sth->fetchall());
+  
+} /* end PTFs() */
+
+
 /* GetFeatures()
  *
  *  Fetch pattern_feature records.
@@ -763,11 +697,6 @@ function GetFeatures($which = null) {
   $query = "SELECT * FROM pattern_feature pf $q";
   try {
     $sth = $pdo->prepare($query);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute($u);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -815,11 +744,6 @@ function InsertFeature($params) {
   $sql = 'INSERT INTO pattern_feature(name, type, notes) VALUES(?,?,?)';
   try {
     $sth = $pdo->prepare($sql);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute([$params['name'], $params['alias'], $params['notes']]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -888,11 +812,6 @@ function InsertTemplateFeature($template_id, $feature_id) {
 
   try {
     $sth = $pdo->prepare('INSERT INTO pt_feature (ptid, fid) VALUES(?, ?)');
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute([$template_id, $feature_id]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -918,11 +837,6 @@ function GetTemplateFeature($id) {
   JOIN pattern_template pt ON ptf.ptid = pt.id
   JOIN pattern_feature pf ON ptf.fid = pf.id
  WHERE ptf.id = ?');
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
-    exit();
-  }
-  try {
     $sth->execute([$id]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
@@ -1002,11 +916,6 @@ function UpdateFeature($update) {
   $sql = "UPDATE pattern_feature SET $q WHERE id = :id";
   try {
     $sth = $pdo->prepare($sql);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $sth->execute($update);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -1065,11 +974,6 @@ function InsertTemplate($params) {
   $sql = 'INSERT INTO pattern_template(name, notes) VALUES(:name, :notes)';
   try {
     $sth = $pdo->prepare($sql);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute($params);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -1100,15 +1004,10 @@ function InsertPL($params) {
   if(GetPL(['name' => $params['name']]))
     Error("There is already a pattern language with name \"{$params['name']}\" and there cannot be two.");
 
-  $sql = 'INSERT INTO pattern_language(name, notes, ptid)
- VALUES(:name, :notes, :ptid)';
+  $sql = 'INSERT INTO pattern_language(name, notes)
+ VALUES(:name, :notes)';
   try {
     $sth = $pdo->prepare($sql);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute($params);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -1137,11 +1036,6 @@ function InsertPV($params) {
  VALUES(:name, :notes, :layout, :ptid)';
   try {
     $sth = $pdo->prepare($sql);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $rv = $sth->execute($params);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -1186,27 +1080,20 @@ function UpdatePV($update) {
 
 /* GetPLMembers()
  *
- *  Get matching plmember records ordered by pid.
+ *  Get matching plmember records - augmented by pattern title - indexed by pid.
  */
 
-function GetPLMembers($which) {
+function GetPLMembers($plid) {
   global $pdo;
 
-  $q = '';
-  $u = [];
-  if(is_array($which) && count($which)) {
-    foreach($which as $k => $v) {
-      if(strlen($q))
-        $q .= ' AND ';
-      $q .= " $k = ?";
-      $u[] = $v;
-    }
-  }
-  $query = 'SELECT * FROM plmember' .
-    (strlen($q) ? " WHERE $q" : '');
+  $query = 'SELECT plm.*, value AS title, p.ptid
+ FROM plmember plm
+  JOIN pattern p ON plm.pid = p.id
+  JOIN pf_title pft ON p.id = pft.id
+ WHERE plid = ?';
 
   $sth = $pdo->prepare($query);
-  $sth->execute($u);
+  $sth->execute([$plid]);
   $plms = [];
   while($plm = $sth->fetch())
     $plms[$plm['pid']] = $plm;
@@ -1293,11 +1180,6 @@ function UpdatePattern($pid, $notes) {
 
   try {
     $sth = $pdo->prepare('UPDATE pattern SET notes = ? WHERE id = ?');
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $sth->execute([$notes, $pid]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -1347,11 +1229,6 @@ function DeleteFeatureValue($fvalue) {
 
   try {
     $sth = $pdo->prepare("DELETE FROM $tablename WHERE pid = ? AND pfid = ?");
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $sth->execute([$fvalue['pid'], $fvalue['id']]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -1407,11 +1284,6 @@ function UpdateFeatureValue($update) {
 
   try {
     $sth = $pdo->prepare($query);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode(), "<br>$query";
-    exit();
-  }
-  try {
     $sth->execute($vals);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode(), "<br>$query";
@@ -1456,11 +1328,6 @@ function InsertFeatureValue($fv) {
 VALUES(?,?,?,?,?)";
     try {
       $sth = $pdo->prepare($query);
-    } catch(PDOException $e) {
-      echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-      exit();
-    }
-    try {
       $sth->execute([
 	$fv['pid'],
 	$pfid,
@@ -1484,11 +1351,6 @@ VALUES(?,?,?,?,?)";
     $query = "INSERT INTO $tblname (pid, pfid, value) VALUES(?, ?, ?)";
     try {
       $sth = $pdo->prepare($query);
-    } catch(PDOException $e) {
-      echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-      exit();
-    }
-    try {
       $sth->execute([$fv['pid'], $pfid, $fv['value']]);
     } catch(PDOException $e) {
       echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -1524,11 +1386,6 @@ function FeatureStats($feature_id) {
     $sth = $pdo->prepare('SELECT pt.name, pt.id FROM pt_feature ptf
    JOIN pattern_template pt ON pt.id = ptid
   WHERE fid = ?');
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $sth->execute([$feature_id]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
@@ -1554,11 +1411,6 @@ function FeatureStats($feature_id) {
   JOIN pattern p ON pft.pid = p.id
   JOIN pattern_template pt ON p.ptid = pt.id
  GROUP BY pt.id");
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
-  try {
     $sth->execute([]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();

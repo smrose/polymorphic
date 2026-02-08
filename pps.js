@@ -18,54 +18,6 @@ var accept
 var accepta
 var featuresel
 var pvid
-var penabled // when true, enable display of patterns
-var ps
-
-
-/* contain()
- *
- *  If penabled, handle a click on a pattern title by opening a container
- *  window to display the pattern.
- */
-
-function contain(e) {
-    if(!penabled)
-        return(false)
-    a = e.target
-    pid = a.dataset.id
-    window.open('viewpattern.php?pid=' + pid + '&pvid=' + pvid.value)
-    
-} // end contain()
-
-
-/* enablef()
- *
- *  Called to enable pattern links, which entaials setting penabled true and
- *  making the pattern titles in the list look link-like.
- */
-
-function enablef() {
-    if(!penabled) {
-        penabled = true
-        for(p of ps)
-            p.classList.toggle('linklike')
-    }
-} // end enablef()
-
-
-/* disablef()
- *
- *  Called to disable pattern links: set penabled false and style the
- *  pattern titles to not look like links.
- */
-
-function disablef() {
-    if(penabled) {
-        penabled = false
-        for(p of ps)
-            p.classList.toggle('linklike')
-    }
-} // end disablef()
 
 
 /* post()
@@ -230,10 +182,6 @@ function init() {
     selectpattern = document.querySelector('#selpat')
     accept = document.querySelector('#accept')   // submit button 1
     accepta = document.querySelector('#accepta') // submit button 2
-    ps = document.querySelectorAll('#ice li a')  // anchors on pattern titles
-    if(ps.length)
-        for(p of ps)
-            p.addEventListener('click', contain)
 
     if(document.querySelector('#patternform')) {
 

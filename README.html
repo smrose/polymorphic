@@ -50,9 +50,9 @@ the schema of the SQL database design we are using.</p>
    <code>title</code> feature is <code>pf_title</code>, which has
    a <code>value</code> column suitable for storing strings.</dd>
  <dd>Values for all of the feature types - except <code>image</code>
-   - are stored in these feature value tables. Images values live in the
+   - are stored in these feature value tables. Image values live in the
   file system, named with the SHA1 hash of the contents, and that hash
-  value is stored in the value table.
+  value is stored in the value table.</dd>
 
  <dt>pattern language</dt>
  <dd>A <em>pattern language</em> is a collection of <em>patterns</em>, which
@@ -143,6 +143,8 @@ is in the repository.</p>
  <li><a href="#pattern_view">pattern_view</a></li>
  <li><a href="#plmember">plmember</a></li>
  <li><a href="#pt_feature">pt_feature</a></li>
+ <li><a href="#pf_thematicimage">pf_thematicimage</a></li>
+ <li><a href="#pf_title">pf_title</a></li>
 </ul>
 
 <p id="pattern_template">A <code>pattern_template</code> is a named set of
@@ -278,6 +280,55 @@ CREATE TABLE pattern_view (
    ON UPDATE current_timestamp(),
   notes varchar(16383),
   CONSTRAINT FOREIGN KEY (ptid) REFERENCES pattern_template(id)
+);
+</pre>
+
+<p id="pf_title">The <code>pf_title</code> table is an example of a feature value table where the
+pattern feature values are of type <code>string</code>.</p>
+
+<pre>
+CREATE TABLE pf_title (
+  id int unsigned NOT NULL AUTO_INCREMENT,
+  pid int unsigned NOT NULL,
+  pfid int unsigned NOT NULL,
+  language char(2) NOT NULL DEFAULT 'en',
+  value varchar(255) NOT NULL,
+  PRIMARY KEY (id,language),
+  KEY pid (pid),
+  KEY pfid (pfid),
+  CONSTRAINT FOREIGN KEY (language) REFERENCES language (code),
+  CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern (id),
+  CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature (id)
+);
+</pre>
+
+<p id="pf_thematicimage">The <code>pf_thematicimage</code> table is an
+example of a feature value table where the pattern feature values
+are of type <code>image</code>. The <code>filename</code> column
+stores the filename of the file that was
+uploaded. The <code>alttext</code> column is for alternative text; a
+value for this field is required. The <code>hash</code> field is an
+SHA1 hash of the file contents, used to name the file and to detect
+when an uploaded file is a duplicate.</p>
+
+<pre>
+CREATE TABLE pf_thematicimage (
+  id int unsigned NOT NULL AUTO_INCREMENT,
+  pid int unsigned NOT NULL,
+  pfid int unsigned NOT NULL,
+  filename varchar(255) DEFAULT NULL,
+  alttext varchar(1023) NOT NULL,
+  hash char(40) NOT NULL,
+  language char(2) NOT NULL DEFAULT 'en',
+  created timestamp NOT NULL DEFAULT current_timestamp(),
+  modified timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (id),
+  KEY language (language),
+  KEY pid (pid),
+  KEY pfid (pfid),
+  CONSTRAINT FOREIGN KEY (language) REFERENCES language (code),
+  CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern (id),
+  CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature (id)
 );
 </pre>
 

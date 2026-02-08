@@ -19,7 +19,6 @@
  *  TemplateForm        present a form for adding or editing a template
  *  SelectPattern       select a pattern for editing
  *  ViewPattern         manage selecting pattern for display
- *  DisplayPattern      render a pattern
  *  ManageFeatures      manage features associated with a template
  *  ManagePatterns      manage pattern language members
  *  EatMe               members come and go - right here
@@ -34,6 +33,7 @@
  *  PVForm              present a form for adding/editing a pattern_view
  *  AbsorbPV            absorb new or edited pattern_view
  *  ValidateView        warn about issues in a a pattern_view
+ *  Status              all the things on a single screen
  *
  * NOTES
  *
@@ -111,9 +111,11 @@
  *  
  */
 
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
+if(false) {
+  header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+  header("Cache-Control: post-check=0, pre-check=0", false);
+  header("Pragma: no-cache");
+}
 
 require 'pps.php';
 
@@ -122,6 +124,7 @@ $SuppressMain = false;
 
 const ANOTHER = 'Accept and enter another';
 const ADDPATTERNS = 'Accept and add patterns';
+const ADDFEATURES = 'Accept and add features';
 
 
 /* SelectTemplate()
@@ -541,6 +544,9 @@ Templates with no associated features are disabled.</p>\n"
 
 function TemplateForm($id = null) {
 
+  $addfeatures = '<input type="submit" name="submit" value="' . ADDFEATURES .
+                     '" id="accepta">';
+
   if(isset($id)) {
 
     # Editing a template.
@@ -560,6 +566,9 @@ function TemplateForm($id = null) {
     $notes_value = $template['notes'];
     $delete = '<input type="submit" name="submit" value="Delete">
 ';
+    if($id == 1)
+      $addfeatures = $delete = '';
+
   } else {
 
     # Adding a template.
@@ -583,7 +592,7 @@ function TemplateForm($id = null) {
  </div>
 
  <div class=\"fsub\">
-  <input type=\"submit\" name=\"submit\" value=\"Accept and add features\" id=\"accepta\">
+  $addfeatures
   <input type=\"submit\" name=\"submit\" value=\"Accept\" id=\"accept\">
   $delete
   <input type=\"submit\" name=\"submit\" value=\"Cancel\">
@@ -660,7 +669,7 @@ template. Filter the pattern selection menu to those of a particular template, o
  *  View a pattern. There are these prerequite steps:
  *
  *   1. Select a pattern language.
- *   2. Select a pattern view that shares the template with the language.
+ *   2. Select pattern views that share templates with patterns in the language.
  *   3. Click on a per-pattern link to generate the page.
  */
 
@@ -668,44 +677,212 @@ function ViewPattern($context) {
 
   if(array_key_exists('plid', $context)) {
 
-    # Language has been selected, offer a set of links and a popup menu to
-    # choose a view. A 'change' event handler on the popup menu controls
-    # whether the links are active, which requires a view be selected.
+    # Language has been selected, offer a set of links and
+    # per-template popup menus to choose a view. 'change' event
+    # handlers on the popup menus controls whether the links are
+    # active, which requires a view be selected. In the case of a
+    # template with no views, the anchors are never activated. In
+    # the case of a template with a single view, the view id is in
+    # a hidden field.
 
     $pl = GetPL($plid = $context['plid']);
-    $ptid = $pl['ptid'];
-    $pvs = GetPVs(['ptid' => $ptid]);
-    $pvsel = '<select name="pvid" id="pvid">
- <option value="0">Select a view</option>
+    $plmembers = GetPLMembers($plid);
+
+    # Which templates participate?
+    
+    $ptids = [];
+    foreach($plmembers as $plmember)
+      $ptids[$plmember['ptid']] = 0;
+
+    # Which views are available for each template? Build popup menus
+    # in $pvsels for those with multiple, a hidden field for those with
+    # just one.
+    
+    $pvsels = [];
+    $multi = 0;
+    
+    foreach($ptids as $ptid => $vcount) {
+      $pvs[$ptid] = GetPVs(['ptid' => $ptid]);
+      if(isset($pvs[$ptid])) {
+
+        # there is at least one view for this template
+        
+        if(($ptids[$ptid] = count($pvs[$ptid])) > 1) {
+
+          # there are multiple views for this template; offer a popup
+          
+          $multi++;
+          $template = GetTemplate($ptid);
+          $pvsels[$ptid] = "<div class=\"fname\">
+  Select a view for template <code>{$template['name']}</code>:
+ </div>
+ <div>
+  <select name=\"pvid-$ptid\" id=\"pvid-$ptid\" class=\"selv\">
+   <option value=\"0\">Select</option>
+";
+          foreach($pvs[$ptid] as $pv)
+            $pvsels[$ptid] .= "   <option value=\"{$pv['id']}\">{$pv['name']}</option>\n";
+          $pvsels[$ptid] .= '  </select>
+ </div>
 ';
-    foreach($pvs as $pv)
-      $pvsel .= "<option value=\"{$pv['id']}\">{$pv['name']}</option>\n";
-    $pvsel .= '</select>
-';
-    $plmembers = GetPLMembers(['plid' => $plid]);
+        } else {
+
+          # there is one view for this template; use hidden element
+
+          $pvid = $pvs[$ptid][0]['id'];
+          $pvsels[$ptid] = "<input type=\"hidden\" name=\"pvid-$ptid\" id=\"pvid-$ptid\" value=\"$pvid\" class=\"selv\">\n";
+	}
+      }
+    }
+
+    # $titles is a sorted-by-title array of arrays with 'title',
+    # 'ptid', and 'id' fields, one per pattern
+
     $titles = [];
     foreach($plmembers as $plmember) {
       $pattern = GetPattern($plmember['pid']);
       $title = $pattern['features']['title']['value'];
-      $titles[] = ['id' => $pattern['id'], 'title' => $title];
+      $titles[] = [
+        'id' => $pattern['id'],
+	'ptid' => $pattern['ptid'],
+	'title' => $title
+      ];
     }
     usort($titles, 'bytitle');
-    print "<h2>View <em>{$pl['name']}</em> Patterns Using the Selected View</h2>
 
-<p>Select a pattern view, then click on a linked pattern title to view that
-pattern with that view.</p>
+    print "<h2>View <em>{$pl['name']}</em> Patterns</h2>\n";
 
-<form class=\"featureform\" id=\"pview\">
- <div class=\"fname\">Select a view:</div>
- <div>$pvsel</div>
-</form>
+    if($multi > 1)
+      print "<p>Select a pattern view for each template. Click on a linked pattern title to view that pattern with that view.</p>\n";
+    elseif($multi)
+      print "<p>Select a pattern view for this template. Click on a linked pattern title to view that pattern with that view.</p>\n";
+    else
+      print "<p>Click on a linked pattern title to view that pattern.</p>\n";
+
+    print "<form class=\"featureform\" id=\"pview\">
+";
+
+    foreach($pvsels as $pvsel)
+      print $pvsel;
+
+    print "</form>
+
 <ul id=\"ice\">\n";
     foreach($titles as $title)
-      print " <li><a data-id=\"{$title['id']}\">{$title['title']}</a></li>\n";
+      print " <li><a data-pid=\"{$title['id']}\" data-ptid=\"{$title['ptid']}\">{$title['title']}</a></li>\n";
     print "</ul>
- <a href=\"./\">Continue</a>.
-";
+<p><a href=\"./\">Continue</a>.</p>
+
+<style>
+  .linklike {
+    color: #339;
+    text-decoration: underline;
+  }
+  .linklike:hover {
+    cursor: pointer;
+  }
+</style>
+
+<script>
+
+    /* contain()
+     *
+     *  Handles 'click' events on anchors: if it has the 'linklike' class, act.
+     */
+
+    function contain(event) {
+        el = event.target
+        if(!el.classList.contains('linklike'))
+            return false
+
+        // what pattern is this?
+
+        pid = el.dataset.pid
+
+        // what template does the pattern use?
+        
+        ptid = el.dataset.ptid
+
+        // what is the selected view for this template?
+        
+        sel = document.querySelector('#pvid-' + ptid)
+        pvid = sel.value
+
+        // call this script with query parameters
+
+        window.open('viewpattern.php?pid=' + pid + '&pvid=' + pvid)
+        
+    } // end contain()
+
     
+    /* setpv()
+     *
+     *  Handles 'change' events on popup menus.
+     */
+
+    function setpv(event) {
+        setpv2(event.target)
+        
+    } // end setpv()
+
+
+    /* setpv2()
+     *
+     *  Given pattern_template.id and pattern_view.id values, set the class of
+     *  anchors on implicated patterns duly.
+     */
+
+    function setpv2(el) {
+        if(! (found = el.id.match(/^\D+(\d+)$/)))
+            return false
+        ptid = found[1]
+        viewid = el.value
+        state = (viewid != 0)
+        for(anchor of anchors)
+            if(anchor.dataset.ptid == ptid)
+                ablef(anchor, state)
+    } /* end setpv2() */
+
+
+    /* ablef()
+     *
+     *  Add or remove 'linklike' class from argument element.
+     */
+
+    function ablef(element, state) {
+        if(state) // enable
+            element.classList.add('linklike')
+        else      // disable
+            element.classList.remove('linklike')
+
+    } // end ablef()
+    
+    /* anchors on pattern titles */
+
+    const anchors = document.querySelectorAll('#ice li a')
+
+    /* popup menus and hidden fields for setting views */
+    
+    const selvs = document.querySelectorAll('.selv')
+
+    // set 'click' handlers on all the anchors
+
+    if(anchors.length)
+        for(anchor of anchors)
+            anchor.addEventListener('click', contain)
+
+    // set 'change' handlers on all the popup menus
+
+    if(selvs.length)
+        for(selv of selvs) {
+            selv.addEventListener('change', setpv)
+            setpv2(selv)
+        }
+  </script>
+</html>
+</script>
+";
+
   } else {
 
     # select a pattern language
@@ -736,11 +913,13 @@ can be selected.</p>
  <div>$selpl</div>
 
  <div class=\"fsub\">
-  <input type=\"submit\" name=\"submit\" value=\"Accept\">
+  <input type=\"submit\" name=\"submit\" value=\"Accept\" id=\"accept\">
   <input type=\"submit\" name=\"submit\" value=\"Cancel\">
  </div>
 
 </form>
+<script>
+</script>
 ";
   }
 
@@ -864,44 +1043,49 @@ function bytitle($a, $b) {
   return $a['title'] <=> $b['title'];
 } /* end bytitle() */
 
+function byname($a, $b) {
+  return $a['name'] <=> $b['name'];
+} /* end byname() */
+
+function byfname($a, $b) {
+  return $a['fname'] <=> $b['fname'];
+} /* end byfname() */
+
 
 /* ManagePatterns()
  *
  *  Manage patterns in this language.
+ *
+ *  We group patterns by template.
  */
 
 function ManagePatterns($plid) {
   $pl = GetPL($plid);
+  $templates = GetTemplates();
+  usort($templates, 'bytitle');
   if(!isset($pl))
     Error("No pattern language with id $plid.");
-  $ptid = $pl['ptid'];
-  
-  # Any pattern with the same pattern_template as this language can be a member.
-  
-  $patterns = GetPatterns(['ptid' => $ptid]);
-
-  # Sort by title.
-
-  if(isset($patterns) && count($patterns))
-    usort($patterns, 'bytitle');
-  else
-    $patterns = [];
 
   # Get the existing members.
   
-  $plmembers = GetPLMembers(['plid' => $plid]);
+  $plmembers = GetPLMembers($plid);
 
-  # Add an 'ismember' value to each pattern record.
-  
-  foreach($patterns as $k => $pattern)
-    $patterns[$k]['ismember'] = array_key_exists($pattern['id'], $plmembers);
+  print "<style>
+  .linklike {
+    color: #339;
+    text-decoration: underline;
+  }
+  .linklike:hover {
+    cursor: pointer;
+  }
+</style>
 
-  print "<h2>Managing Patterns for Pattern Language <code>{$pl['name']}</code></h2>
+<h2>Managing Patterns for Pattern Language <code>{$pl['name']}</code></h2>
 
-<p>A <em>pattern language</em> consists of a set of patterns that share a
-<em>pattern template</em> - a common set of features. Use this form to add
-and remove patterns from this pattern language. Checkboxes are already
-checked for those patterns that are already members of this language.</p>
+<p>A <em>pattern language</em> is a named set of patterns. Use this
+form to add and remove patterns from this pattern language. Checkboxes
+are already checked for those patterns that are already members of
+this language. Patterns are grouped by pattern template.</p>
 
 <form method=\"POST\" action=\"{$_SERVER['SCRIPT_NAME']}\" id=\"faform\">
  <input type=\"hidden\" name=\"pl\" value=\"eatme\">
@@ -909,13 +1093,34 @@ checked for those patterns that are already members of this language.</p>
  <div class=\"fh\">Pattern title</div>
  <div class=\"fh\">Membership</div>
 ";
-  foreach($patterns as $pattern) {
-    $checked = $pattern['ismember'] ? ' checked="checked"' : '';
-    print " <div class=\"antifa\">{$pattern['title']}</div>
+
+  # Loop on templates.
+
+  foreach($templates as $template) {
+  
+    # Get the patterns using this template. If none, skip, else sort by title.
+
+    $patterns = GetPatterns(['ptid' => $template['id']]);
+    if(!isset($patterns) || !count($patterns))
+      continue;
+    print " <div title=\"{$template['id']}\" class=\"fsub\" style=\"background-color: #eec\">{$template['name']}</div>\n";
+    usort($patterns, 'bytitle');
+
+    # Add an 'ismember' value to each pattern record.
+  
+    foreach($patterns as $k => $pattern)
+      $patterns[$k]['ismember'] = array_key_exists($pattern['id'], $plmembers);
+
+    # Loop on patterns in this template.
+    
+    foreach($patterns as $pattern) {
+      $checked = $pattern['ismember'] ? ' checked="checked"' : '';
+      print " <div class=\"antifa\">{$pattern['title']}</div>
   <div class=\"centrist\">
    <input type=\"checkbox\" name=\"{$pattern['id']}\"$checked>
   </div>
 ";
+    }
   }
   print " <div class=\"fsub\">
  <input type=\"submit\" name=\"submit\" value=\"Accept\">
@@ -941,7 +1146,7 @@ function EatMe() {
   $inserts = [];
   $deletes = [];
   $nmembers = [];
-  $omembers = GetPLMembers(['plid' => $plid]);
+  $omembers = GetPLMembers($plid);
 
   // If a POST parameter is numeric, that's a checked box.
 
@@ -1186,11 +1391,13 @@ function AbsorbNewPattern() {
  *  Return a popup menu of pattern_templates.
  */
 
-function TemplateMenu($id = null) {
+function TemplateMenu($id = null, $multi = false) {
   $pts = GetTemplates();
-  $tm = '<select name="template_id">
- <option value="0">Select a pattern template</option>
+  $tm = '<select id="template_id" name="template_id"' . ($multi ? ' multiple' : '') . '>
 ';
+  if(!$multi)
+    $tm .= " <option value=\"0\">Select a pattern template</option>\n";
+
   foreach($pts as $pt) {
     $selected = (isset($id) && $id == $pt['id']) ? ' selected="selected"' : '';
     $tm .= " <option value=\"{$pt['id']}\"$selected>{$pt['name']}</option>\n";
@@ -1224,7 +1431,6 @@ function PLForm($id = null) {
     $notes_value = $pl['notes'];
     $delete = '';
     $title = 'Edit Pattern Language';
-    $tmenu = TemplateMenu($pl['ptid']);
     $context = "<input type=\"hidden\" name=\"plid\" value=\"$id\">\n";
 
   } else {
@@ -1233,33 +1439,57 @@ function PLForm($id = null) {
 
     $title = 'Add a Pattern Langage';
     $name_value = $notes_value = $delete = '';
-    $tmenu = TemplateMenu();
+    $tmenu = TemplateMenu(null, true);
+    $notes = '<p>Enter a unique name and, optionally, notes for a new pattern language. If you select
+one or more templates, you can add patterns that use those templates to be members of the language
+in the next screen.</p>
+';
   }
   print "<h2>$title</h2>
+
+$notes
 
 <form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\">
  <input type=\"hidden\" name=\"pl\" value=\"absorb_pl\">
 $context
 
  <div class=\"fname\">Pattern language name:</div>
- <div><input type=\"text\" name=\"name\"$name_value\"></div>
+ <div><input type=\"text\" name=\"name\"$name_value id=\"name\"></div>
 
  <div class=\"fname\">Notes:</div>
  <div>
   <textarea name=\"notes\" rows=\"3\" cols=\"80\">$notes_value</textarea>
  </div>
 
- <div class=\"fname\">Pattern template:</div>
- <div>$tmenu</div>
-
  <div class=\"fsub\">
-  <input type=\"submit\" name=\"submit\" value=\"" . ADDPATTERNS . "\">
+  <input type=\"submit\" name=\"submit\" value=\"" . ADDPATTERNS . "\" id=\"accepta\">
   <input type=\"submit\" name=\"submit\" value=\"Accept\" id=\"accept\">
   $delete
   <input type=\"submit\" name=\"submit\" value=\"Cancel\">
  </div>
 
 </form>
+
+<script>
+  function namef(e) {
+    acceptel.disabled = (nameel.value.length > 0) ? false : true
+  }
+  function template_idf(e) {
+    console.log('template_idel.value: ' + template_idel.value)
+    console.log('nameel.value: ' + nameel.value)
+    acceptael.disabled =
+      ((nameel.value.length > 0) && (template_idel.value)) ? false : true
+  }
+  template_idel = document.querySelector('#template_id')
+  nameel = document.querySelector('#name')
+  acceptel = document.querySelector('#accept')
+  acceptael = document.querySelector('#accepta')
+  nameel.addEventListener('input', namef)
+  nameel.addEventListener('input', template_idf)
+  template_idel.addEventListener('change', template_idf)
+  namef()
+  template_idf()
+</script>
 ";
   
 } /* end PLForm() */
@@ -1268,21 +1498,13 @@ $context
 /* SelectPL()
  *
  *  Select a pattern language.
- *
- *  All the patterns in a pattern language share a template. If there are
- *  no patterns in the template a pattern language uses, there is no ability
- *  to add patterns to it. Therefore, while we support creation and editing
- *  of pattern languages, we do the user no favor by offering them to add
- *  patterns to pattern languages based on patternless templates. In the
- *  event that we find such pattern languages, we offer a separate menu
- *  for selecting for metadata edits and for selecting for adding patterns.
  */
 
 function SelectPL($context) {
   $pls = GetPLs();
   $ppls = GetPLs(null, true); # pls with pattern counts
   
-  $selpl = "<select name=\"plid\">
+  $selpl = "<select name=\"plid\" id=\"plid\">
  <option value=\"0\">Select a pattern language</option>
 ";
   $submit = '';
@@ -1311,6 +1533,24 @@ function SelectPL($context) {
   $submit
  </div>
 </form>
+
+<script>
+  function plidf(e) {
+    submitstate = (plidel.value > 0) ? false : true  
+    metadatael.disabled = submitstate
+    managepel.disabled = submitstate
+    delplel.disabled = submitstate
+  }
+
+  metadatael = document.querySelector('#metadata')
+  managepel = document.querySelector('#managep')
+  delplel = document.querySelector('#delpl')
+
+  plidel = document.querySelector('#plid')
+
+  plidel.addEventListener('change', plidf)
+  plidf()
+</script>
 ";
 
 } /* end SelectPL() */
@@ -1377,7 +1617,6 @@ function PVForm($id = null) {
       Error("Pattern view not found.");
     $name_value = " value=\"{$pv['name']}\"";
     $notes_value = $pv['notes'];
-    $layout_value = $pv['layout'];
     $delete = '';
     $title = 'Edit Pattern View';
     $context = "<input type=\"hidden\" name=\"pvid\" value=\"$id\">\n";
@@ -1402,10 +1641,6 @@ hiding feature lables for patterns that lack an associated value.</p>
 determines which features might be defined for a pattern used with the
 view.<p>
 
-<p>You can use the text area to enter a pattern view, or you can
-upload a file. If you upload a file we will ignore any input in the
-<code>Layout</code> textarea.</p>
-
 <form enctype=\"multipart/form-data\" action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\">
  <input type=\"hidden\" name=\"pv\" value=\"absorb_pv\">
  $context
@@ -1423,11 +1658,6 @@ upload a file. If you upload a file we will ignore any input in the
  
  <div class=\"fname\">Layout file:</div>
  <div><input name=\"layout\" type=\"file\"></div>
-
- <div class=\"fname\">Layout:</div>
- <div>
-  <textarea name=\"layout\" rows=\"3\" cols=\"80\">$layout_value</textarea>
- </div>
 
  <div class=\"fsub\">
   <input type=\"submit\" name=\"submit\" value=\"Accept\" id=\"accept\">
@@ -1475,8 +1705,6 @@ function AbsorbPV() {
       Error('Layout file size exceeds maximum accepted of ' . MAXIMAGE . ' bytes');
     $layout = file_get_contents($file['tmp_name']);
   }
-  elseif(isset($_REQUEST['layout']))
-    $layout = $_REQUEST['layout'];
 
   if($layout && strlen($layout))
     ValidateView($layout, $pt);
@@ -1511,14 +1739,13 @@ function AbsorbPV() {
 } /* end AbsorbPV() */
 
 
-/* ValidateView()
+/* Tokens($layout, $template)
  *
- *  Warn about detected problems in the pattern view.
+ *  Loop on token matches in the layout, returning the found token names.
  */
 
-function ValidateView($layout, $template) {
+function Tokens($layout) {
   $tokens = [];
-
   $offset = 0;
   while(preg_match(TOKENMATCH, $layout, $matches, PREG_OFFSET_CAPTURE,
         $offset)) {
@@ -1526,7 +1753,22 @@ function ValidateView($layout, $template) {
     $tokens[$token] = $token;
     $offset = $matches[1][1] + strlen($token) + 2;
   }
+  return($tokens);
 
+} /* end Tokens() */
+
+
+/* ValidateView()
+ *
+ *  Warn about detected problems in the pattern view.
+ */
+
+function ValidateView($layout, $template) {
+
+  # Get the tokens found in the layout.
+  
+  $tokens = Tokens($layout);
+  
   # Find feature tokens found/not found in the template and features found in
   # the template not used in the layout.
 
@@ -1563,6 +1805,215 @@ function ValidateView($layout, $template) {
   return $status;
   
 } /* end ValidateView() */
+
+
+/* Status()
+ *
+ *  Display all the data on a single screen.
+ */
+
+function Status() {
+
+  # pattern_templates: name, pattern count, feature count, view names.
+  
+  $templates = GetTemplates();
+
+  print '<style type="text/css">
+ .some {
+   display: grid;
+   width: max-content;
+   max-width: 95vw;
+   margin-left: 1em;
+   border: 1px solid #300;
+   background-color: white;
+ }
+ .foursome {
+   grid-template-columns: repeat(4, auto);
+ }
+ .threesome {
+   grid-template-columns: repeat(3, auto);
+ }
+ .somehead {
+  background-color: #ffd;
+  font-weight: bold;
+  text-align: center;
+ }
+ .some div {
+  padding: .1em;
+  border: 1px solid #ccc;
+  text-align: center;
+ }
+</style>
+
+<h1>System Summary</h1>
+
+<ul>
+ <li><a href="#templates">Pattern Templates</a></li>
+ <li><a href="#views">Pattern Views</a></li>
+ <li><a href="#languages">Pattern Languages</a></li>
+ <li><a href="#features">Pattern Features</a></li>
+</ul>
+
+<h2 id="templates">Pattern Templates</h2>
+
+<p>A pattern template is a named collection of pattern features that is used
+to specify which features a pattern must or may have and which features
+a pattern view may support.</p>
+
+<div class="some foursome">
+  
+ <div class="somehead">Name</div>
+ <div class="somehead">Features</div>
+ <div class="somehead">Patterns</div>
+ <div class="somehead">Views</div>
+';
+
+  # Loop on templates, displaying a table. $pvt is an array, keyed on
+  # template name, with values that are arrays of pattern views using
+  # that template.
+
+  $pvt = [];
+  foreach($templates as $id => $template) {
+    $pvs = GetPVs(['ptid' => $template['id']]);
+    $pvt[$template['name']] = $pvs;
+    $pvnames = [];
+    foreach($pvs as $pv)
+      $pvnames[] = $pv['name'];
+    if(count($pvs))
+      $pvstring = implode(', ', $pvnames);
+    else
+      $pvstring = '(none)';
+    print " <div title=\"id {$template['id']}\">{$template['name']}</div>
+ <div style=\"text-align: center\">{$template['fcount']}</div>
+ <div style=\"text-align: center\">{$template['pcount']}</div>
+ <div>$pvstring</div>
+
+";
+  }
+  print '</div>
+
+<h2 id="views">Pattern Views</h2>
+
+<p>Pattern views are named and are associated with a template and a layout
+file that specifies how to display feature values.</p>
+
+<div class="some threesome">
+
+ <div class="somehead">View Name</div>
+ <div class="somehead">Template Name</div>
+ <div class="somehead">Feature Names</div>
+
+';
+
+  foreach($pvt as $tname => $pvs) {
+    foreach($pvs as $pv) {
+      if(strlen($pv['layout'])) {
+        $tokens = Tokens($pv['layout']);
+        $fstring = implode(', ', $tokens);
+      } else
+        $fstring = '(none)';
+      print " <div>{$pv['name']}</div>
+ <div>$tname</div>
+ <div>$fstring</div>
+
+";
+    }
+  }
+  
+  print '</div>
+
+<h2 id="languages">Pattern Languages</h2>
+
+<p>Pattern languages are named collections of patterns.</p>
+
+<div class="some threesome">
+
+ <div class="somehead">Language name</div>
+ <div class="somehead">Template name</div>
+ <div class="somehead">Pattern Titles</div>
+
+';
+  # Loop on languages.
+
+  $pls = GetPLs();
+  usort($pls, 'byname');
+  foreach($pls as $pl) {
+    $plmembers = GetPLMembers($pl['id']);
+    $pbyt = [];
+    if(count($plmembers))
+      foreach($plmembers as $plmember)
+        $pbyt[$plmember['ptid']][] = $plmember;
+
+    # Loop on templates.
+    
+    $plp = [];
+    
+    foreach($templates as $template) {
+      $patterns = isset($pbyt[$template['id']]) && count($pbyt[$template['id']])
+        ? $pbyt[$template['id']] : [];
+      if(count($patterns)) {
+        usort($patterns, 'bytitle');
+        $pstring = '';
+        foreach($patterns as $pattern)
+          $pstring .= strlen($pstring) ? ", {$pattern['title']}" : $pattern['title'];
+        $plp[$template['name']] = $pstring;
+      }
+    }
+    if(count($plp))
+      if(count($plp) > 1)
+        $grs = ' style="grid-row: span ' . count($plp) . '"';
+      else
+        $grs = '';
+    print " <div$grs>{$pl['name']}</div>\n";
+    if(count($plp)) {
+      foreach($plp as $tname => $pstring)
+        print " <div>$tname</div> \n <div>$pstring</div>\n";
+    } else
+      print " <div style=\"grid-column: span 2\">(none)</div>\n";
+  }
+  print '</div>
+
+<h2 id="features">Pattern Features</h2>
+
+<p>Patterns are each a collection of feature values. Each pattern uses
+a template to define what features for which it might (and those for
+which it must) have values. The table below lists all the features, their
+types, the templates that include them, and the number of values that the
+exist, per template.</p>
+
+<div class="some foursome">
+
+ <div class="somehead">Name</div>
+ <div class="somehead">Type</div>
+ <div class="somehead">Template</div>
+ <div class="somehead">Value Count</div>
+';
+
+  # For each feature, display the name, data type, the templates that refer to it,
+  # and the per-template value count, 
+  
+  $features = GetFeatures();
+  usort($features, 'byname');
+  foreach($features as $feature) {
+    $stats = FeatureStats($feature['id']);
+    if(count($stats) > 1)
+      $grs = ' style="grid-row: span ' . count($stats) . '"';
+    else
+      $grs = '';
+    print " <div$grs>{$feature['name']}</div>
+ <div$grs>{$feature['type']}</div>
+";
+    foreach($stats as $stat)
+      print " <div>{$stat['name']}</div>
+ <div>{$stat['count']}</div>\n\n";
+  }
+  print "</div>
+
+<p><a href=\"{$_SERVER['SCRIPT_NAME']}\">Continue.</a></p>
+";
+  
+} /* end Status() */
+
 
 ?>
 <!DOCTYPE html>
@@ -1609,6 +2060,13 @@ if(DEBUG && count($_FILES)) {
 
 if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
   true;
+} elseif(isset($_REQUEST['summary'])) {
+
+  # Display a summmry of data.
+
+  Status();
+  $SuppressMain = true;
+  
 } elseif(isset($_REQUEST['pattern'])) {
 
   # pattern actions
@@ -1795,6 +2253,7 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
   # pattern language actions
 
   if($_REQUEST['pl'] == 'edit') {
+
     if(isset($_REQUEST['plid'])) {
 
       // working with the selected language
@@ -1803,6 +2262,9 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
         if($_REQUEST['submit'] == 'Edit metadata') {
           PLForm($plid);
           $SuppressMain = 1;
+        } elseif($_REQUEST['submit'] == 'Delete') {
+          if(DeletePL($plid))
+            Alert('Deleted pattern language');
         } elseif($_REQUEST['submit'] == 'Manage patterns') {
           ManagePatterns($plid);
           $SuppressMain = true;
@@ -1824,11 +2286,15 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
         'submit' => [
           [
             'label' => 'Edit metadata',
-            'id' => 'metadata',
+            'id' => 'metadata'
           ],
           [
-            'id' => 'plsel',
-            'label' => 'Manage patterns'
+            'label' => 'Delete',
+            'id' => 'delpl'
+          ],
+          [
+            'label' => 'Manage patterns',
+            'id' => 'managep'
           ]
         ],
       ]);
@@ -1849,7 +2315,6 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
         CheckIdentifier($_REQUEST['name'], true);
         if(UpdatePL([
             'id' => $plid,
-            'ptid' => $_REQUEST['template_id'],
             'name' => $_REQUEST['name'],
             'notes' => $_REQUEST['notes']
           ]))
@@ -1862,7 +2327,6 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
         $pl = InsertPL([
           'name' => $_REQUEST['name'],
           'notes' => $_REQUEST['notes'],
-          'ptid' => $_REQUEST['template_id']
         ]);
         Alert("Inserted pattern language <code>{$_REQUEST['name']}</code> (id <code>{$pl['id']}</code>).");
         if($_REQUEST['submit'] == ADDPATTERNS) {
@@ -1979,7 +2443,7 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
         'notes' => $_REQUEST['notes']
       ]);
       Alert("Inserted template <i>{$template['name']}</i>, id <code>{$template['id']}</code>.");
-      if($_REQUEST['submit'] == 'Accept and add features') {
+      if($_REQUEST['submit'] == ADDFEATURES) {
         ManageFeatures($template['id']);
         $SuppressMain = true;
       }
@@ -2026,7 +2490,12 @@ if(!$SuppressMain) {
  <li><a href="?pv=edit">Edit a pattern view</a></li>
 </ul>
 
-<p><a href="README.html">README</a></p>
+<h2>Documentation</h2>
+
+<ul>
+ <li><a href="?summary=1">System summary</a></li>
+ <li><a href="README.html">README</a></li>
+</ul>
 
 </div>
 <?php

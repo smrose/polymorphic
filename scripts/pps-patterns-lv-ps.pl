@@ -27,8 +27,6 @@
 #   FOREIGN KEY (pid) REFERENCES pattern(id),
 #   FOREIGN KEY (plid) REFERENCES pattern_language(id)
 #  );
-#
-# $Id: pps-patterns-lv-ps.pl,v 1.2 2025/12/16 00:16:51 rose Exp $
 
 use strict;
 use DBI;
@@ -36,8 +34,11 @@ use Readonly;
 use Try::Tiny;
 
 our($dbh, $sth, $patterns, $pattern_template, $pattern_language,
-    $pattern_features, @pf);
+    $pattern_features, @pf, $sourcedb, $destdb, $sourceuser,
+    $destuser, $sourcepw, $destpw);
 
+use lib '.';
+require 'creds.pl';
 
 # pinsert()
 #
@@ -82,7 +83,7 @@ sub pinsert {
 
 # Fetch the patterns from ps.
 
-$dbh = DBI->connect('dbi:mysql:database=ps', 'root', '%7<"Fv_Ba2J+jP[8')
+$dbh = DBI->connect('dbi:mysql:database=' . $sourcedb, $sourceuser, $sourcepw)
     or die 'connect';
 $patterns = $dbh->selectall_hashref('SELECT p.* FROM pattern p
   JOIN planguage pl ON p.plid = pl.id
@@ -92,28 +93,24 @@ $dbh->disconnect;
 
 # Get the pattern_features from pps.
 
-$dbh = DBI->connect('dbi:mysql:database=pps', 'pps', 'Pa++3rn 5ph3r3')
+$dbh = DBI->connect('dbi:mysql:database=' . $destdb, $destuser, $destpw)
     or die 'connect';
 
 # Get the pattern_template id.
 
-$pattern_template = $dbh->selectcol_arrayref('SELECT id FROM pattern_template');
+$pattern_template = $dbh->selectcol_arrayref('SELECT id
+ FROM pattern_template
+ WHERE name = "Liberating Voices"');
 $pattern_template = $pattern_template->[0];
-
-# Get the pattern_language id.
-
-$pattern_language = $dbh->selectcol_arrayref('SELECT id FROM pattern_language');
-$pattern_language = $pattern_language->[0];
-
 # Get the pattern features.
 
 $pattern_features = $dbh->selectall_hashref('SELECT * FROM pattern_feature', 'id')
     or die 'selectall pps.pattern_feature';
 
-my $sth = $dbh->prepare('INSERT INTO pt_feature (ptid, fid) VALUES (?, ?)');
-for my $pattern_feature (values %$pattern_features) {
-    $sth->execute($pattern_template, $pattern_feature->{id});
-}
+# Get the pattern_language id.
+
+$pattern_language = $dbh->selectcol_arrayref('SELECT id FROM pattern_language');
+$pattern_language = $pattern_language->[0];
 
 for my $pattern (sort {$a->{id} <=> $b->{id}} values %$patterns) {
     pinsert($pattern);

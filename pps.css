@@ -75,7 +75,7 @@ div.booty {
 #faform {
     display: grid;
     border: 1px solid black;
-    grid-template-columns: auto;
+    grid-template-columns: auto auto;
     width: max-content;
     background-color: #ffd;
     margin-left: 1em;
@@ -211,11 +211,4 @@ input[type=submit]:disabled {
 .h {
     font-weight: bold;
     text-align: right;
-}
-.linklike {
-    color: #339;
-    text-decoration: underline;
-}
-.linklike:hover {
-    cursor: pointer;
 }

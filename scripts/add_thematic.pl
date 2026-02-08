@@ -196,15 +196,18 @@ while(my $f = readdir(D)) {
     # Determine if a pt_feature row that ties the thematicimage feature to
     # the 'Liberating Voices' template exists.
     
-    my @rows = $dbh->selectall_array("SELECT id FROM pt_feature
+    my @rows = $dbh->selectall_array("SELECT * FROM pt_feature
  WHERE ptid = $ptid AND fid = $pfid");
 
     unless(scalar @rows) {
 	
-	# The pattern_feature row for thematicimage doesn't exist; insert one.
+	# The pt_feature rows for thematicimage don't exist; insert.
 		 
 	$dbh->do("INSERT INTO pt_feature(ptid, fid)
- VALUES($ptid, $pfid)")
+ VALUES(1, $pfid)")
+	    or die 'insert pt_feature';
+	$dbh->do("INSERT INTO pt_feature(ptid, fid)
+ VALUES(2, $pfid)")
 	    or die 'insert pt_feature';
     }
 }
