@@ -192,6 +192,38 @@ function SelectTemplate($context) {
 $submit
 </div>
 </form>
+
+<script>
+
+  /* stidf()
+   *
+   *  Handle 'input' events on the select-template popup. We don't want the
+   *  submit buttons to be active unless a template has been selected.
+   */
+
+  function stidf() {
+    submitState = (template_id.value != '0')
+    submitState2 = (template_id.value > 1)
+    if(metadata)
+        metadata.disabled = ! submitState
+    if(features)
+        features.disabled = ! submitState2
+    if(tsel)
+        tsel.disabled = ! submitState
+
+  } /* end stidf() */
+
+  selecttemplate = document.querySelector('#selecttemplate')
+  accept = document.querySelector('#accept')
+  accepta = document.querySelector('#accepta')
+  if(template_id = document.querySelector('#template_id'))
+    template_id.addEventListener('input', stidf)
+  metadata = document.querySelector('#metadata')
+  features = document.querySelector('#features')
+  tsel = document.querySelector('#tsel')
+  if(metadata || features || tsel)
+    stidf()
+</script>
 ";
 
 } /* end SelectTemplate() */
@@ -223,6 +255,20 @@ print "<form method=\"POST\" action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featur
  <input type=\"submit\" name=\"submit\" value=\"Cancel\">
 <div>
 </form>
+";
+  print "<script>
+
+  function f(e) {
+    enable = feature_id.value != '0'
+    accept.disabled = !enable
+    
+  } /* end feature_id() */
+  
+  var feature_id = document.querySelector('#feature_id')
+  var accept = document.querySelector('#accept')
+  feature_id.addEventListener('change', f)
+  f()
+</script>
 ";
 
 } /* end SelectFeature() */
@@ -263,7 +309,7 @@ function PatternForm($action, $id) {
  <input type="submit" id="accepta" name="submit" value="' . ANOTHER . '">
 ';
   }
-print "$note
+  print "$note
 
 <p>Required features are displayed <span class=\"required\">like this</span>.</p>
 
@@ -344,6 +390,27 @@ $context
   <div><code>{$feature['filename']}</code></div>
  </div>
 </div>
+
+<script>
+  function pf(e) {
+    rinputs = document.querySelectorAll('.rinput')
+    disable = false
+    for(rinput of rinputs)
+        if(rinput.value.length == 0)
+            disable = true
+    accept.disabled = disable
+    if(accepta)
+        accepta.disabled = disable
+
+  } // end pf()
+  
+  rinputs = document.querySelectorAll('.rinput')
+  if(rinputs.length) {
+      for(rinput of rinputs)
+        rinput.addEventListener('input', pf)
+      pf()
+  }
+</script>
 ";
       }
     } elseif($feature['type'] == 'text') {
@@ -431,14 +498,13 @@ function FeatureForm($id = null) {
     $fname = $fnotes = $fid = '';
     print "<h2>Add a Feature</h2>
 
-<p class=\"instr\">Select from these types:
+<p class=\"instr\">Select from these types:</p>
  <ul>
   <li><code>string</code>: a character string of 255 characters or fewer</li>
   <li><code>text</code>: up to sixteen million characters</li>
   <li><code>integer</code>: a integer value</li>
   <li><code>image</code>: a graphic image, up to sixteen million bytes</li>
  </ul>
-</p>
 ";
     $another = '<input type="submit" id="accepta" name="submit" value="' . ANOTHER . "\">\n";
     $instr = "<p class=\"alert\">Enter a name, data type, and optional notes
@@ -480,6 +546,28 @@ $fid
   <input type=\"submit\" name=\"submit\" value=\"Cancel\">
  </div>
 </form>
+
+<script>
+  /* faform()
+   *
+   *  Control enablement of submit buttons on feature add/edit form.
+   */
+   
+  function faform(event) {
+    enable = (faformtype.value != '0') && (faformname.value.length > 0)
+    accept.disabled = ! enable
+    if(accepta)
+      accepta.disabled = ! enable
+  } /* end faform() */
+  
+  var faformtype = document.querySelector('#faformtype')
+  var faformname = document.querySelector('#faformname')
+  var accept = document.querySelector('#accept')
+  var accepta = document.querySelector('#accepta')
+  faformname.addEventListener('input', faform)
+  faformtype.addEventListener('change', faform)
+  faform()
+</script>
 ";
 
 } /* end FeatureForm() */
@@ -598,6 +686,22 @@ function TemplateForm($id = null) {
   <input type=\"submit\" name=\"submit\" value=\"Cancel\">
  </div>
 </form>
+
+<script>
+  function et(e) {
+    tname = document.querySelector('#name')
+    submitstate = (tname.value.length > 0) ? false : true
+    accept.disabled = submitstate
+    if(accepta)
+      accepta.disabled = submitstate
+  } // end et()
+
+  accept = document.querySelector('#accept')   // submit button 1
+  accepta = document.querySelector('#accepta') // submit button 2
+  tname = document.querySelector('#name')
+  tname.addEventListener('input', et)
+  et()
+</script>
 ";
 } /* end TemplateForm() */
 
@@ -638,6 +742,19 @@ function SelectPattern($template_id = null) {
  <input type=\"submit\" name=\"submit\" value=\"Cancel\">
 </div>
 </form>
+
+<script>
+  function spidf() {
+    submitState = (pattern_id.value != '0')
+    if(accept)
+        accept.disabled = ! submitState
+
+  } /* end spidf()
+  accept = document.querySelector('#accept')   // submit button 1
+  pattern_id = document.querySelector('#pattern_id'))
+  pattern_id.addEventListener('input', spidf)
+  spidf()
+</script>
 ";
   } else {
 
@@ -729,9 +846,10 @@ function ViewPattern($context) {
 
           # there is one view for this template; use hidden element
 
-          $pvid = $pvs[$ptid][0]['id'];
+	  $pv = array_shift($pvs[$ptid]);
+          $pvid = $pv['id'];
           $pvsels[$ptid] = "<input type=\"hidden\" name=\"pvid-$ptid\" id=\"pvid-$ptid\" value=\"$pvid\" class=\"selv\">\n";
-	}
+        }
       }
     }
 
@@ -744,28 +862,31 @@ function ViewPattern($context) {
       $title = $pattern['features']['title']['value'];
       $titles[] = [
         'id' => $pattern['id'],
-	'ptid' => $pattern['ptid'],
-	'title' => $title
+        'ptid' => $pattern['ptid'],
+        'title' => $title
       ];
     }
     usort($titles, 'bytitle');
 
     print "<h2>View <em>{$pl['name']}</em> Patterns</h2>\n";
 
-    if($multi > 1)
+    if($multi > 1) {
       print "<p>Select a pattern view for each template. Click on a linked pattern title to view that pattern with that view.</p>\n";
-    elseif($multi)
+      $display = '';
+    } elseif($multi) {
       print "<p>Select a pattern view for this template. Click on a linked pattern title to view that pattern with that view.</p>\n";
-    else
-      print "<p>Click on a linked pattern title to view that pattern.</p>\n";
-
-    print "<form class=\"featureform\" id=\"pview\">
+      $display = '';
+    } else {
+      Alert('Click on a linked pattern title to view that pattern.');
+      $display = ' style="display: none"';
+    }
+    print "<div class=\"featureform\" id=\"pview\"$display>
 ";
 
     foreach($pvsels as $pvsel)
       print $pvsel;
 
-    print "</form>
+    print "</div>
 
 <ul id=\"ice\">\n";
     foreach($titles as $title)
@@ -947,7 +1068,7 @@ function ManageFeatures($template_id) {
     # there is at least one feature not used by this template; offer to add
     
     $fmenu = '<select name="feature_id" id="featuresel">
- <option value="0">Select a feature to add</option>
+ <option value="0">Select</option>
 ';
     foreach($ufeatures as $ufeature) {
       $fmenu .= " <option value=\"{$ufeature['id']}\">{$ufeature['name']} - {$ufeature['type']}</option>\n";
@@ -979,13 +1100,38 @@ page to add that.)</p>
 <input type=\"hidden\" name=\"template\" value=\"edit\">
 <input type=\"hidden\" name=\"template_id\" value=\"$template_id\">
 <input type=\"hidden\" name=\"action\" value=\"addfeature\">
+
+<div class=\"fname\">Select a feature to add:</div>
 <div style=\"text-align: center\">$fmenu</div>
-<div>
+
+<div style=\"grid-column: span 2\">
  <input type=\"submit\" id=\"accept\" name=\"submit\" value=\"Accept\">
- <input type=\"submit\" id=\"aaccept\" name=\"submit\" value=\"" . ANOTHER . "\">
+ <input type=\"submit\" id=\"accepta\" name=\"submit\" value=\"" . ANOTHER . "\">
  <input type=\"submit\" name=\"submit\" value=\"Cancel\">
 </div>
 </form>
+
+<script>
+  /* mfaformf()
+   *
+   *  We don't want to accept template feature additions if a feature hasn't
+   *  been selected.
+   */
+
+  function mfaformf() {
+      submitState = featuresel.value != '0'
+      accept.disabled = !submitState
+      if(accepta)
+          accepta.disabled = !submitState
+
+  } /* end mfaformf() */
+
+  featuresel = document.querySelector('#featuresel')
+  featuresel.addEventListener('input', mfaformf)
+  accept = document.querySelector('#accept')
+  accepta = document.querySelector('#accepta')
+  mfaformf()
+</script>
 ";
   } else {
     print "<p class=\"alert\">There are no features not already used by this template.</p>\n";
@@ -1473,22 +1619,13 @@ $context
 <script>
   function namef(e) {
     acceptel.disabled = (nameel.value.length > 0) ? false : true
+    acceptael.disabled = (nameel.value.length > 0) ? false : true
   }
-  function template_idf(e) {
-    console.log('template_idel.value: ' + template_idel.value)
-    console.log('nameel.value: ' + nameel.value)
-    acceptael.disabled =
-      ((nameel.value.length > 0) && (template_idel.value)) ? false : true
-  }
-  template_idel = document.querySelector('#template_id')
   nameel = document.querySelector('#name')
   acceptel = document.querySelector('#accept')
   acceptael = document.querySelector('#accepta')
   nameel.addEventListener('input', namef)
-  nameel.addEventListener('input', template_idf)
-  template_idel.addEventListener('change', template_idf)
   namef()
-  template_idf()
 </script>
 ";
   
@@ -1564,7 +1701,7 @@ function SelectPL($context) {
 function SelectPV($context) {
   $pvs = GetPVs();
   
-  $selpv = "<select name=\"pvid\">
+  $selpv = "<select name=\"pvid\" id=\"pvid\">
  <option value=\"0\">Select a pattern view</option>
 ";
   $submit = '';
@@ -1573,7 +1710,7 @@ function SelectPV($context) {
       $id = " id=\"{$sub['id']}\"";
     else
       $id = '';
-    $submit .= "<input type=\"submit\" name=\"submit\" value=\"{$sub['label']}\"$id>\n";
+    $submit .= "<input type=\"submit\" name=\"submit\" id=\"accept\" value=\"{$sub['label']}\"$id>\n";
   }
   $submit .= "<input type=\"submit\" name=\"submit\" value=\"Cancel\">\n";
 
@@ -1593,6 +1730,16 @@ function SelectPV($context) {
   $submit
  </div>
 </form>
+
+<script>
+  function pvidf(e) {
+    accept.disabled = pvid.value == '0'
+  }
+  pvid = document.querySelector('#pvid')
+  pvid.addEventListener('change', pvidf)
+  accept = document.querySelector('#accept')
+  pvidf()
+</script>
 ";
 
 } /* end SelectPV() */
@@ -1621,6 +1768,8 @@ function PVForm($id = null) {
     $title = 'Edit Pattern View';
     $context = "<input type=\"hidden\" name=\"pvid\" value=\"$id\">\n";
     $tmenu = TemplateMenu($pv['ptid']);
+    if($l = strlen($pv['layout']))
+      $existing = "($l characters)";
   } else {
 
     // adding a pattern view
@@ -1628,6 +1777,7 @@ function PVForm($id = null) {
     $title = 'Add Pattern View';
     $name_value = $notes_value = $delete = '';
     $tmenu = TemplateMenu();
+    $existing = '';
   }
   print "<h2>$title</h2>
 
@@ -1646,7 +1796,7 @@ view.<p>
  $context
 
  <div class=\"fname\">Pattern view name:</div>
- <div><input type=\"text\" name=\"name\"$name_value\"></div>
+ <div><input type=\"text\" name=\"name\"$name_value\" id=\"pvname\"></div>
 
  <div class=\"fname\">Notes:</div>
  <div>
@@ -1657,13 +1807,37 @@ view.<p>
  <div>$tmenu</div>
  
  <div class=\"fname\">Layout file:</div>
- <div><input name=\"layout\" type=\"file\"></div>
+ <div><input name=\"layout\" type=\"file\">$existing</div>
 
  <div class=\"fsub\">
   <input type=\"submit\" name=\"submit\" value=\"Accept\" id=\"accept\">
   $delete
   <input type=\"submit\" name=\"submit\" value=\"Cancel\">
  </div>
+
+</form>
+
+<script>
+
+  /* sub()
+   *
+   *  Enable the submit button if there is a name value and a selected
+   *  template.
+   */
+   
+  function sub(event) {
+    enable = (pvname.value.length > 0) && (template_id.value > 0)
+    accept.disabled = ! enable
+  } 
+  
+  var pvname = document.querySelector('#pvname')
+  pvname.addEventListener('input', sub)
+  var template_id = document.querySelector('#template_id')
+  template_id.addEventListener('change', sub)
+  var accept = document.querySelector('#accept')
+  sub()
+
+</script>
 ";
 
 } /* end PVForm() */
@@ -1776,11 +1950,15 @@ function ValidateView($layout, $template) {
   $found = [];
   $orphans = [];
   $unused = [];
+
   foreach($tokens as $token)
+    if(preg_match('/^(.+)-alttext$/', $token, $matches))
+      $token = $matches[1]; // treat FEATURENAME-alttext as FEATURENAME
     if(array_key_exists($token, $features))
       $found[$token] = true;
     else
       $orphans[$token] = true;
+
   foreach($features as $feature) {
     if(!array_key_exists($feature['name'], $tokens))
       $unused[$feature['name']] = $feature['name'];

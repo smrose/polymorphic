@@ -817,7 +817,7 @@ function InsertTemplateFeature($template_id, $feature_id) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
-  return GetTemplateFeature($pdo->lastInsertId());
+  return GetTemplateFeature($template_id, $feature_id);
   
 } /* end InsertTemplateFeature() */
 
@@ -825,10 +825,10 @@ function InsertTemplateFeature($template_id, $feature_id) {
 /* GetTemplateFeature()
  *
  *  Return a pt_feature record, augmented with feature and template names,
- *  selected by id.
+ *  selected by pattern_template.id and pattern_feature.id.
  */
 
-function GetTemplateFeature($id) {
+function GetTemplateFeature($template_id, $feature_id) {
   global $pdo;
 
   try {
@@ -836,10 +836,10 @@ function GetTemplateFeature($id) {
  FROM pt_feature ptf
   JOIN pattern_template pt ON ptf.ptid = pt.id
   JOIN pattern_feature pf ON ptf.fid = pf.id
- WHERE ptf.id = ?');
-    $sth->execute([$id]);
+ WHERE pt.id = ? AND pf.id = ?');
+    $sth->execute([$template_id, $feature_id]);
   } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
+    echo __FILE__, ': ', __LINE__, $e->getMessage(), ' ', $e->getCode();
     exit();
   }
   $pt = $sth->fetch();
@@ -1487,9 +1487,8 @@ function CheckFile($file) {
 
     // something went wrong with the upload
       
-    if(false)
-      Alert("Upload failed for <code>{$file['name']}</code>: " .
-        UPERROR[$file['error']] . "\n");
+    Alert("Upload failed for <code>{$file['name']}</code>: " .
+          UPERROR[$file['error']] . "\n");
     return false;
   }
   if(!strlen($file['alttext'])) {
