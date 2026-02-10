@@ -36,20 +36,38 @@ function DisplayPattern($pattern, $pv) {
   # last token is replaced.
 
   while(preg_match(TOKENMATCH, $layout, $matches, 0)) {
-    $token = $matches[1];
-    $tmatch = $matches[0];
-    $feature = $features[$token];
-    $ft = $feature['type'];
-    if($ft == 'image') {
-    
-      // what we have is a hash, which needs to be converted to a URL
 
-      $fv = ImagePath($feature['hash']);
-    } else {
-        $fv = $feature['value'];
-    }
-    $layout = str_replace($tmatch, $fv, $layout);
-  }
+    $fname = $matches[1]; // the token that was found, e.g. 'title'
+    $tmatch = $matches[0]; // the substring that was matched, e.g. '%%title%%'
+
+    if(preg_match('/^(.+)-alttext$/', $fname, $matches)) {
+
+      /* this token is for alternative text */
+      
+      $fname = $matches[1]; // actual feature name
+      $alttext = true;
+    } else
+      $alttext = false;
+      
+    $feature = $features[$fname];
+
+    if($feature['type'] == 'image') {
+      if($alttext)
+        $fvalue = $feature['alttext'];
+      else
+    
+        // what we have is a hash, which needs to be converted to a URL
+
+        $fvalue = ImagePath($feature['hash']);
+    } else
+        $fvalue = $feature['value'];
+
+    // replace the token with the value
+
+    $layout = str_replace($tmatch, $fvalue, $layout);
+    
+  } // end loop on token search
+  
   # Display it.
   
   print $layout;
