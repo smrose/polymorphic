@@ -14,6 +14,7 @@
  *  GetPatterns       fetch pattern records
  *  GetPattern        fetch a pattern with its features
  *  InsertPattern     insert a pattern record
+ *  DeletePattern     delete a pattern record
  *  DeletePL          delete a pattern_language record
  *  UpdatePL          update a pattern_language record
  *  GetPL             fetch one pattern_language record
@@ -73,7 +74,7 @@ define('TYPE', array(
 define('IMAGEROOT', 'images');
 define('MAXIMAGE', 8000000);
 define('IDEPTH', 1);
-define('GIWHITE', array('image/gif', 'image/jpeg', 'iage/png'));
+define('GIWHITE', array('image/gif', 'image/jpeg', 'image/png'));
 define('NOFILE', 4);
 define('UPERROR', array(
   1 => 'too large per system limit',
@@ -133,7 +134,8 @@ function CountPatterns($ptid) {
 
 /* GetPatterns()
  *
- *  Fetch patterns - all or selected - ordered by 'id'.
+ *  Fetch 'pattern' records - all or selected - ordered by 'id' and
+ *  augmented with the title and pattern template name.
  */
 
 function GetPatterns($which = null) {
@@ -141,6 +143,7 @@ function GetPatterns($which = null) {
 
   $q = '';
   $u = [];
+  $which['pf.name'] = 'title';
   if(isset($which) && is_array($which) && count($which)) {
     foreach($which as $column => $value) {
       if(strlen($q))
@@ -151,9 +154,10 @@ function GetPatterns($which = null) {
     $q = "WHERE $q";
   }
 
-  $query = "SELECT p.*, pt.name AS ptname, pft.value AS title FROM pattern p
+  $query = "SELECT p.*, pt.name AS ptname, pfs.value AS title FROM pattern p
  JOIN pattern_template pt ON p.ptid = pt.id
- LEFT JOIN pf_title pft ON p.id = pft.pid $q";
+ LEFT JOIN pf_string pfs ON p.id = pfs.pid
+ JOIN pattern_feature pf ON pf.id = pfs.pfid $q";
 
   try {
     $sth = $pdo->prepare($query);
@@ -215,13 +219,15 @@ function GetPattern($id) {
   while($feature = $sth->fetch())
     $features[$feature['name']] = $feature;
     
-  # Fetch all the feature values from their per-feature tables.
+  # Fetch all the feature values from their per-feature-type tables.
 
   foreach($features as $feature) {
-    $query = "SELECT * FROM pf_{$feature['name']} WHERE pid = ?";
+    $fid = $feature['id'];
+    $query = "SELECT * FROM pf_{$feature['type']}
+ WHERE pid = ? AND pfid = ?";
     try {
       $sth = $pdo->prepare($query);
-      $sth->execute([$id]);
+      $sth->execute([$id, $fid]);
     } catch(PDOException $e) {
       echo __FILE__, ':', __LINE__, $e->getMessage(), ' ', $e->getCode();
       exit();
@@ -238,7 +244,7 @@ function GetPattern($id) {
       if($feature['type'] == 'image') {
 
         // image features have alttext, filename, and hash attributes
-	
+        
         $features[$feature['name']]['alttext'] = $v['alttext'];
         $features[$feature['name']]['filename'] = $v['filename'];
         $features[$feature['name']]['hash'] = $v['hash'];
@@ -271,6 +277,30 @@ function InsertPattern($notes, $template_id) {
   return GetPattern($pdo->lastInsertId());
 
 } /* end InsertPattern() */
+
+
+/* DeletePattern()
+ *
+ *  Delete the pattern with id == $id.
+ *
+ *  Pattern features have per-pattern values that are tied to the associated
+ *  pattern via the 'pid' column in the value table. We use the ON DELETE
+ *  clause of foreign key constraints to manage deletion of feature values.
+ */
+
+function DeletePattern($id) {
+  global $pdo;
+
+  try {
+    $sth = $pdo->prepare('DELETE FROM pattern WHERE id = ?');
+    $sth->execute([$id]);
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
+  }
+  return $sth->rowCount();
+  
+} /* end DeletePattern() */
 
 
 /* DeletePL()
@@ -638,12 +668,13 @@ function GetPTFeatures($template_id) {
 function GetPTFcount($template_id, $feature) {
   global $pdo;
 
-  $tblname = "pf_{$feature['name']}";
+  $tblname = "pf_{$feature['type']}";
+  $fid = $feature['id'];
   $sth = $pdo->prepare("SELECT count(*) AS count
  FROM $tblname pf
   JOIN pattern p ON pf.pid = p.id
- WHERE ptid = ?");
-  $sth->execute([$template_id]);
+ WHERE ptid = ? AND pfid = ?");
+  $sth->execute([$template_id, $fid]);
   $count = $sth->fetchColumn();
   return $count;
 
@@ -684,9 +715,9 @@ function GetFeatures($which = null) {
       $u = [];
       foreach($which as $column => $value) {
         if(strlen($q))
-	  $q .= ' AND ';
+          $q .= ' AND ';
         $q .= " $column = ?";
-	$u[] = $value;
+        $u[] = $value;
       }
       $q = "WHERE $q";
     }
@@ -750,43 +781,6 @@ function InsertFeature($params) {
     exit();
   }
   $feature = GetFeature($pdo->lastInsertId());
-
-  # Create a table to hold the values.
-
-  if($params['alias'] == 'image') {
-    $sql = "CREATE TABLE pf_{$params['name']} (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  pid INT UNSIGNED NOT NULL,
-  pfid INT UNSIGNED NOT NULL,
-  filename VARCHAR(255),
-  alttext VARCHAR(1023) NOT NULL,
-  hash CHAR(40) NOT NULL,
-  language CHAR(2) NOT NULL DEFAULT 'en',
-  created TIMESTAMP NOT NULL DEFAULT current_timestamp(),
-  modified TIMESTAMP NOT NULL DEFAULT current_timestamp()
-   ON UPDATE current_timestamp(),
-  CONSTRAINT FOREIGN KEY(language) REFERENCES language(code),
-  CONSTRAINT FOREIGN KEY(pid) REFERENCES pattern(id),
-  CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
-)";
-  } else {
-    $sql = "CREATE TABLE pf_{$params['name']} (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  pid INT UNSIGNED NOT NULL,
-  pfid INT UNSIGNED NOT NULL,
-  language CHAR(2) DEFAULT 'en',
-  value {$params['type']} NOT NULL,
-  PRIMARY KEY (id, language),
-  CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
-  CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
-)";
-  }
-  try {
-    $pdo->exec($sql);
-  } catch(PDOException $e) {
-    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
-    exit();
-  }
 
   # Insert a pt_feature record for the all-features template.
 
@@ -854,9 +848,6 @@ function GetTemplateFeature($template_id, $feature_id) {
 /* DeleteTemplateFeature()
  *
  *  Remove a pt_feature record as well as any associated values.
- *
- *  This isn't as dramatic as removing a pattern_feature - there,
- *  we are also dropping a table.
  */
 
 function DeleteTemplateFeature($template_id, $feature_id) {
@@ -865,16 +856,17 @@ function DeleteTemplateFeature($template_id, $feature_id) {
   $feature = GetFeature($feature_id);
   if(! isset($feature))
     Error("Feature $feature_id not found.");
-  $tblname = "pf_{$feature['name']}";
+  $tblname = "pf_{$feature['type']}";
   
   # Remove any values from the associated feature values table that
   # are associated with this template.
 
   try {
     $pdo->beginTransaction();
-    $sth = $pdo->prepare("DELETE FROM $tblname WHERE id IN
+    $sth = $pdo->prepare("DELETE FROM $tblname
+ WHERE pfid = ? AND id IN
  (SELECT v.id FROM $tblname v JOIN pattern p ON v.pid = p.id WHERE ptid = ?)");
-    $sth->execute([$template_id]);
+    $sth->execute([$feature_id, $template_id]);
     $sth = $pdo->prepare('DELETE FROM pt_feature WHERE fid = ? AND ptid = ?');
     $sth->execute([$feature_id, $template_id]);
     $pdo->commit();
@@ -928,7 +920,7 @@ function UpdateFeature($update) {
 /* DeleteFeature()
  *
  *  Delete this pattern_feature record and pt_feature records that refer to
- *  it and drop the table that contains values for it.
+ *  it.
  */
 
 function DeleteFeature($feature_id) {
@@ -937,7 +929,7 @@ function DeleteFeature($feature_id) {
   $feature = GetFeature($feature_id);
   if(! isset($feature))
     Error("Feature $feature_id not found.");
-  $tblname = "pf_{$feature['name']}";
+  $tblname = "pf_{$feature['type']}";
   
   try {
     $pdo->beginTransaction();
@@ -945,7 +937,7 @@ function DeleteFeature($feature_id) {
     $sth->execute([$feature_id]);
     $sth = $pdo->prepare('DELETE FROM pattern_feature WHERE id = ?');
     $sth->execute([$feature_id]);
-    $pdo->exec("DROP TABLE $tblname"); # DROP TABLE performs commit
+    $pdo->commit();
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
@@ -1089,8 +1081,9 @@ function GetPLMembers($plid) {
   $query = 'SELECT plm.*, value AS title, p.ptid
  FROM plmember plm
   JOIN pattern p ON plm.pid = p.id
-  JOIN pf_title pft ON p.id = pft.id
- WHERE plid = ?';
+  JOIN pf_string pfs ON pfs.pid = p.id
+  JOIN pattern_feature pf ON pf.id = pfs.pfid
+ WHERE plid = ? AND pf.name = "title"';
 
   $sth = $pdo->prepare($query);
   $sth->execute([$plid]);
@@ -1225,7 +1218,7 @@ function DeleteFeatureValue($fvalue) {
   global $pdo;
   
   $name = $fvalue['name'];
-  $tablename = "pf_$name";
+  $tablename = "pf_$type";
 
   try {
     $sth = $pdo->prepare("DELETE FROM $tablename WHERE pid = ? AND pfid = ?");
@@ -1264,14 +1257,17 @@ function UpdateFeatureValue($update) {
 
   $assignments = '';
   $vals = [];
+
   foreach($update as $k => $v) {
     if($k == 'pid')
       $pid = $v;
+    elseif($k == 'pfid')
+      $pfid = $v;
+    elseif($k == 'type')
+      continue;
     else {
       $assignments .= strlen($assignments) ? ',' : '';
-      if($k == 'featurename')
-        continue;
-      elseif($k == 'name')
+      if($k == 'name')
         $field = 'filename';
       else
         $field = $k;
@@ -1279,8 +1275,10 @@ function UpdateFeatureValue($update) {
       $vals[] = $v;
     }
   }
+  $tblName = "pf_{$update['type']}";
   $vals[] = $pid;
-  $query = "UPDATE pf_{$update['featurename']} SET $assignments WHERE pid = ?";
+  $vals[] = $pfid;
+  $query = "UPDATE $tblName SET $assignments WHERE pid = ? AND pfid = ?";
 
   try {
     $sth = $pdo->prepare($query);
@@ -1311,13 +1309,13 @@ function InsertFeatureValue($fv) {
 
   # we need the id of the pattern_feature row corresponding to this feature.
 
-  $pfs = GetFeatures(['name' => $fv['fname']]);
+  $pfs = GetFeatures(['id' => $fv['fid']]);
   if(!isset($pfs) || !count($pfs))
     Error("No feature named <code>{$fv['fname']}</code> was found");
   $pf = $pfs[0];
   $pfid = $pf['id'];
 
-  $tblname = "pf_{$fv['fname']}";
+  $tblname = "pf_{$pf['type']}";
 
   if($pf['type'] == 'image') {
 
@@ -1329,11 +1327,11 @@ VALUES(?,?,?,?,?)";
     try {
       $sth = $pdo->prepare($query);
       $sth->execute([
-	$fv['pid'],
-	$pfid,
-	$fv['name'],
-	$fv['alttext'],
-	$fv['hash']
+        $fv['pid'],
+        $pfid,
+        $fv['name'],
+        $fv['alttext'],
+        $fv['hash']
       ]);
     } catch(PDOException $e) {
       echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode(), '<br>', $query;
@@ -1378,7 +1376,7 @@ function FeatureStats($feature_id) {
   $feature = GetFeature($feature_id);
   if(!isset($feature))
     Error("No such feature with id = $feature_id");
-  $tblname = 'pf_' . $feature['name'];
+  $tblname = 'pf_' . $feature['type'];
 
   # Get the names and ids of all the templates that use this feature.
 
@@ -1403,21 +1401,21 @@ function FeatureStats($feature_id) {
   if(!count($templates))
     return null;
 
-  # Count the per-template number of values.
+  # Count the per-template number of values for this feature.
 
   try {
-    $sth = $pdo->prepare("SELECT count(*) AS count, pt.id
+    $sth = $pdo->prepare("SELECT ptid, count(*) AS count
  FROM {$tblname} pft
   JOIN pattern p ON pft.pid = p.id
-  JOIN pattern_template pt ON p.ptid = pt.id
- GROUP BY pt.id");
-    $sth->execute([]);
+ WHERE pfid = ?
+ GROUP BY p.ptid");
+    $sth->execute([$feature_id]);
   } catch(PDOException $e) {
     echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
     exit();
   }
   while($template = $sth->fetch())
-    $templates[$template['id']]['count'] = $template['count'];
+    $templates[$template['ptid']]['count'] = $template['count'];
 
   return $templates;
   

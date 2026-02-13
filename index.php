@@ -62,11 +62,11 @@
  *    notes VARCHAR(255),
  *   );
  *
- *  Each feature has an associated table that stores values. For example,
+ *  Each feature type has an associated table that stores values. For example,
  *  a "title" feature, which has type "varchar(255)", which the user sees
  *  as "string."
  *
- *   CREATE TABLE pf_title (
+ *   CREATE TABLE pf_string (
  *    id int unsigned NOT NULL AUTO_INCREMENT,
  *    pid int(10) unsigned NOT NULL,
  *    pfid int(10) unsigned NOT NULL,
@@ -107,7 +107,7 @@
  *  id 2 - with each pattern using that template we have a row in
  *  pt_feature with fid = 2 and ptid = 1. For the pattern with the
  *  title "The Good Life" - pattern.id = 3 - there is a row in the
- *  pf_title table with pfid = 2 and pid = 3.
+ *  pf_string table with pfid = 2 and pid = 3.
  *  
  */
 
@@ -287,13 +287,12 @@ function PatternForm($action, $id) {
     $features = $pattern['features'];
     $action = 'absorb_edit';
     $ptitle = isset($features['title']) ? $features['title']['value'] : '(no title)';
-    $title = "Editing Pattern <i>$ptitle</i>";
     $context = "<input type=\"hidden\" name=\"id\" value=\"$id\">\n";
     $nvalue = $pattern['notes'];
-    $note = "<p class=\"alert\">Editing a pattern with id <code>$id</code></p>
-<h2>$ptitle</h2>
+    $note = "<h2>Editing <em>$ptitle</em></h2>
 ";
     $submit = ' <input type="submit" name="submit" value="Accept" id="accept">
+ <input type="submit" name="submit" value="Delete">
 ';
   } else {
     $title = 'Adding Pattern';
@@ -309,11 +308,9 @@ function PatternForm($action, $id) {
  <input type="submit" id="accepta" name="submit" value="' . ANOTHER . '">
 ';
   }
-  print "$note
-
-<p>Required features are displayed <span class=\"required\">like this</span>.</p>
-
-<form enctype=\"multipart/form-data\" action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featureform\" method=\"POST\" id=\"patternform\">
+  print "$note\n";
+  Alert('Required features are displayed <span class="required">like this</span>. Check the checkbox at the right to remove a value.');
+  print "<form enctype=\"multipart/form-data\" action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featureform\" method=\"POST\" id=\"patternform\">
  <div class=\"fh\">Feature name</div>
  <div class=\"fh\">Value</div>
 <input type=\"hidden\" name=\"pattern\" value=\"$action\">
@@ -343,7 +340,7 @@ $context
       } else {
         $value = '';
       }
-      $input = "<input name=\"f-{$feature['name']}\" type=\"text\" size=\"5\"$value>\n";
+      $input = "<input name=\"f-{$feature['id']}\" type=\"text\" size=\"5\"$value>\n";
 
     } elseif($feature['type'] == 'string') {
 
@@ -355,9 +352,9 @@ $context
       if(isset($feature['value'])) {
         $value = " value=\"{$feature['value']}\"";
         if(!$feature['required'])
-          $remove = "<input type=\"checkbox\" name=\"d-{$feature['name']}\" tite=\"remove\">";
+          $remove = "<input type=\"checkbox\" name=\"d-{$feature['id']}\" tite=\"remove\">";
       }
-      $input = "<input name=\"f-{$feature['name']}\" type=\"text\" size=\"80\"$value$iclass>$remove\n";
+      $input = "<input name=\"f-{$feature['id']}\" type=\"text\" size=\"80\"$value$iclass>$remove\n";
 
     } elseif($feature['type'] == 'image') {
 
@@ -367,8 +364,8 @@ $context
         $value = " value=\"{$feature['alttext']}\"";
       else
         $value = '';
-      $input = "<input name=\"{$feature['name']}\" type=\"file\">";
-      $input2 = "<input type=\"text\" name=\"f-{$feature['name']}\" size=\"50\"$value>";
+      $input = "<input name=\"{$feature['id']}\" type=\"file\">";
+      $input2 = "<input type=\"text\" name=\"f-{$feature['id']}\" size=\"50\"$value>";
       
       // link to view existing image
       
@@ -390,27 +387,6 @@ $context
   <div><code>{$feature['filename']}</code></div>
  </div>
 </div>
-
-<script>
-  function pf(e) {
-    rinputs = document.querySelectorAll('.rinput')
-    disable = false
-    for(rinput of rinputs)
-        if(rinput.value.length == 0)
-            disable = true
-    accept.disabled = disable
-    if(accepta)
-        accepta.disabled = disable
-
-  } // end pf()
-  
-  rinputs = document.querySelectorAll('.rinput')
-  if(rinputs.length) {
-      for(rinput of rinputs)
-        rinput.addEventListener('input', pf)
-      pf()
-  }
-</script>
 ";
       }
     } elseif($feature['type'] == 'text') {
@@ -419,18 +395,18 @@ $context
       
       if(isset($feature['value'])) {
         $value = $feature['value'];
-        $remove = "<input type=\"checkbox\" name=\"d-{$feature['name']}\" title=\"remove\">";
+        $remove = "<input type=\"checkbox\" name=\"d-{$feature['id']}\" title=\"remove\">";
       } else {
         $value = '';
         $remove = '';
       }
-      $input = "<textarea name=\"f-{$feature['name']}\" rows=\"3\" cols=\"80\">$value</textarea>$remove\n";
+      $input = "<textarea name=\"f-{$feature['id']}\" rows=\"3\" cols=\"80\">$value</textarea>$remove\n";
     } else {
       Error("Unrecognized feature type <code>{$feature['type']}</code>");
     }
     $lclass = ($feature['required']) ? 'fname required' : 'fname';
 
-    print " <div class=\"$lclass\">{$feature['name']} ({$feature['type']}):</div>
+    print " <div class=\"$lclass\">{$feature['name']}:</div>
  <div>{$input}{$ilink}</div>
 ";
     if($feature['type'] == 'image')
@@ -451,6 +427,67 @@ $submit
 </div>
 </form>
 $imgs
+<script>
+
+  /* pf()
+   *
+   *  Input fields that are required have the 'rinput' class. We disable
+   *  the submit buttons unless there is a value provided for all of those.
+   *
+   *  Alternative text is required for image file uploads. We disable the
+   *  submit buttons unless alternative text is provided for each file upload
+   *  field for which a file is provided.
+   */
+   
+  function pf(e) {
+    disable = false
+
+    // look at required fields
+    
+    rinputs = document.querySelectorAll('.rinput')
+    for(rinput of rinputs)
+        if(rinput.value.length == 0)
+            disable = true
+
+    if(!disable) {
+
+      // look at file uploads
+      
+      ffs = document.querySelectorAll(\"input[type='file']\")
+      for(ff of ffs) {
+        if(ff.value.length) {
+	  if(at = document.querySelector('input[name=\"f-' + ff.name + '\"'))
+	    if(! at.value.length)
+	      disable = true
+	}
+      }
+    }
+    if(accept = document.querySelector('#accept'))
+      accept.disabled = disable 
+
+  } // end pf()
+  
+  finputs = document.querySelectorAll(\"input[type='file']\") // file fields
+  rinputs = document.querySelectorAll('.rinput') // required fields
+  if(rinputs.length) {
+      for(rinput of rinputs)
+        rinput.addEventListener('input', pf)
+      pf()
+  }
+  if(finputs.length) {
+  
+    // put a click event listener on each file input
+    
+    for(finput of finputs) {
+      finput.addEventListener('input', pf)
+      
+      // the input field for alt text for this field is named f-<feature-id>
+      
+      if(atinput = document.querySelector('input[name=\"f-' + finput.name + '\"]'))
+        atinput.addEventListener('input', pf)
+    }
+  }
+</script>
 ";
   
 } /* end PatternForm() */
@@ -1356,12 +1393,13 @@ function AbsorbPatternUpdate() {
   $pattern_id = $_REQUEST['id'];
   $pattern = GetPattern($pattern_id);
   $features = $pattern['features'];
+  $fbyi = [];
+  foreach($features as $feature)
+    $fbyi[$feature['id']] = $feature;
 
   $update = [];
   $insert = [];
   $delete = [];
-
-  $fnames = [];
 
   # Loop on form fields, looking for feature value changes and additions.
   
@@ -1370,9 +1408,8 @@ function AbsorbPatternUpdate() {
     if(!preg_match('/^f-(.+)$/', $k, $matches))
       continue;
       
-    $name = $matches[1];
-    $fnames[$name] = 1;
-    $feature = $features[$name];
+    $id = $matches[1];
+    $feature = $fbyi[$id];
 
     if(isset($feature) && isset($feature['value'])) {
 
@@ -1381,8 +1418,10 @@ function AbsorbPatternUpdate() {
       if($feature['value'] == $v)
         continue; # no change
       else
-        $update[$name] = [
-          'featurename' => $name,
+        $update[$id] = [
+	  'pid' => $pattern_id,
+	  'pfid' => $feature['id'],
+	  'type' => $feature['type'],
           'value' => $v
         ];
 
@@ -1392,7 +1431,7 @@ function AbsorbPatternUpdate() {
       # feature is an existing image; alttext and/or hash and filename
       # may have changed
 
-      $file = $_FILES[$name];
+      $file = $_FILES[$id];
       $file['alttext'] = trim($v);
 
       if($haveUpload = ($file['error'] != NOFILE))
@@ -1401,8 +1440,9 @@ function AbsorbPatternUpdate() {
       if(($haveUpload && $feature['hash'] != $file['hash']) ||
          ($feature['alttext'] != $v)) {
         $update[$name] = [
-          'featurename' => $name,
-          'pid' => $pattern_id
+          'pid' => $pattern_id,
+	  'pfid' => $feature['id'],
+	  'type' => 'image',
         ];
         if($haveUpload && $feature['hash'] != $file['hash']) {
           $update[$name]['hash'] = $file['hash'];
@@ -1417,27 +1457,28 @@ function AbsorbPatternUpdate() {
 
       if($feature['type'] == 'image') {
 
-        // feature values of type 'image' require upload and alternative text
+        // 'image' feature values require upload and alternative text
 
-        $file = $_FILES[$name];
+        $file = $_FILES[$id];
         if($file['error'] == NOFILE)
           continue;
         $file['alttext'] = trim($_REQUEST[$k]);
+	
         if($file = CheckFile($file))
           $insert[$name] = [
             'name' => $file['name'],
-            'fname' => $name,
             'alttext' => $file['alttext'],
+	    'fid' => $id,
             'hash' => $file['hash']
           ];
         else
           Alert("Failed to set a value for $name.");
-       } else {
+      } else {
         if($feature['type'] == 'string' || $feature['type'] == 'text') {
           if(strlen($v))
             $insert[] = ['fname' => $name, 'value' => $v];
-             } else  
-          $insert[] = ['fname' => $name, 'value' => $v];
+          } else  
+            $insert[] = ['fname' => $name, 'value' => $v];
       }
     }
   } # end loop on features in form
@@ -1445,7 +1486,7 @@ function AbsorbPatternUpdate() {
   # Loop on existing pattern features, looking for deletions.
 
   foreach($features as $feature)
-    if(array_key_exists("d-{$feature['name']}", $_REQUEST))
+    if(array_key_exists("d-{$feature['id']}", $_REQUEST))
       $delete[] = $feature;
 
   # perform the pattern feature changes.
@@ -1475,7 +1516,10 @@ function AbsorbNewPattern() {
   // collect the features specified in the form
   
   $template = GetTemplate($template_id = $_REQUEST['template_id']);
-  $template_features = $template['features'];
+
+  $template_features = [];
+  foreach($template['features'] as $tf)
+    $template_features[$tf['id']] = $tf;
   
   $features = [];
 
@@ -1484,29 +1528,29 @@ function AbsorbNewPattern() {
 
       # as a hack, feature names in the form start with "f-"
 
-      $name = $matches[1];
-      $features[$name] = $v;
+      $id = $matches[1];
+      $features[$id] = $v;
     }
   }
   $notes = $_REQUEST['notes'];
   $template_id = $_REQUEST['template_id'];
   $pattern = InsertPattern($notes, $template_id);
   
-  foreach($features as $fname => $fvalue) {
-    $feature = $template_features[$fname];
+  foreach($features as $fid => $fvalue) {
+    $feature = $template_features[$fid];
 
     if($feature['type'] == 'image') {
 
       # handle a feature of type 'image'
       
-      $file = $_FILES[$fname];
+      $file = $_FILES[$fid];
       if($haveUpload = ($file['error'] != NOFILE)) {
         $file['alttext'] = $fvalue;
         if($file = CheckFile($file))
           InsertFeatureValue([
             'pid' => $pattern['id'],
-            'fname' => $fname,
-            'alttext' => $file['alttext'],
+            'fid' => $fid,
+            'alttext' => $fvalue,
             'hash' => $file['hash'],
             'name' => $file['name']
           ]);
@@ -1521,13 +1565,13 @@ function AbsorbNewPattern() {
         
       InsertFeatureValue([
         'pid' => $pattern['id'],
-        'fname' => $fname,
+        'fid' => $fid,
         'value' => $fvalue
       ]);
     }
   }
-  $pattern['features'] = $features;
-  return $pattern;
+
+  return GetPattern($pattern['id']);
   
 } /* end AbsorbNewPattern() */
 
@@ -1943,13 +1987,13 @@ function ValidateView($layout, $template) {
   
   $tokens = Tokens($layout);
   
-  # Find feature tokens found/not found in the template and features found in
+  # Find feature names found/not found in the template and features found in
   # the template not used in the layout.
 
   $features = $template['features'];
-  $found = [];
-  $orphans = [];
-  $unused = [];
+  $found = [];   # found in both
+  $orphans = []; # found only in layout
+  $unused = [];  # found only in template
 
   foreach($tokens as $token)
     if(preg_match('/^(.+)-alttext$/', $token, $matches))
@@ -1973,7 +2017,7 @@ function ValidateView($layout, $template) {
   }
   if(count($orphans)) {
     Alert("These feature tags found in the layout are not in the <code>{$template['name']}</code> template: <code>" .
-      implode('</code> , <code>', $orphans) . '</code>');
+      implode('</code> , <code>', array_keys($orphans)) . '</code>');
     $status = false;
   }
   if(count($unused)) {
@@ -2145,7 +2189,7 @@ file that specifies how to display feature values.</p>
     print " <div$grs>{$pl['name']}</div>\n";
     if(count($plp)) {
       foreach($plp as $tname => $pstring)
-        print " <div>$tname</div> \n <div>$pstring</div>\n";
+        print " <div>$tname</div> \n <div style=\"text-align: left\">$pstring</div>\n";
     } else
       print " <div style=\"grid-column: span 2\">(none)</div>\n";
   }
@@ -2284,6 +2328,7 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
         Error('You failed to select a pattern.');
       PatternForm('edit', $pattern_id);
       $SuppressMain = true;
+
     } elseif(isset($_REQUEST['template_id'])) {
 
       # Selecting a pattern to edit.
@@ -2306,7 +2351,12 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
     AddPattern($template_id);
     $SuppressMain = true;
   } elseif($action == 'absorb_edit') {
-    if(AbsorbPatternUpdate())
+    if($_REQUEST['submit'] == 'Delete') {
+      if(DeletePattern($_REQUEST['id']))
+        Alert('Deleted pattern.');
+      else
+        Alert('Pattern deletion failed.');
+    } elseif(AbsorbPatternUpdate())
       Alert('Updated pattern.');
     else
       Alert('No update.');
@@ -2315,7 +2365,7 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
     # absorbing pattern addition
     
     $pattern = AbsorbNewPattern();
-    Alert("Created new pattern with title <em>{$pattern['features']['title']}</em>, id {$pattern['id']}");
+    Alert("Created new pattern with title <em>{$pattern['features']['title']['value']}</em>, id {$pattern['id']}");
     if($_REQUEST['submit'] == ANOTHER) {
       PatternForm('add', $_REQUEST['template_id']);
       $SuppressMain = true;

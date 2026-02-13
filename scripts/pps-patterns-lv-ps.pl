@@ -10,23 +10,16 @@
 #
 # NOTES
 #
+
 #  ps.pattern is a table with one row per pattern. pps.pattern
-#  contains only the pattern id and pattern_template id, and all the
-#  pattern features live in the pattern_feature table while all the
-#  pattern feature values are in tables named for the feature.
+#  contains only the pattern id and pattern_template id
 #
-#  CREATE TABLE IF NOT EXISTS pattern (
-#   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
-#   pt_id INT UNSIGNED NOT NULL,
-#   CONSTRAINT FOREIGN KEY (ptid) REFERENCES pattern_template(id)
-#  );
+#  pattern features are defined in the pattern_feature table
 #
-#  CREATE TABLE plmember (
-#   pid integer unsigned NOT NULL,
-#   plid integer unsigned NOT NULL,
-#   FOREIGN KEY (pid) REFERENCES pattern(id),
-#   FOREIGN KEY (plid) REFERENCES pattern_language(id)
-#  );
+#  rows in the pt_feature table establish which features a pattern may
+#  or must have
+#
+#  pattern feature values are in tables named for the feature type
 
 use strict;
 use DBI;
@@ -67,11 +60,12 @@ sub pinsert {
     # create the features
     
     for my $pattern_feature (values %$pattern_features) {
+	my $pftype = $pattern_feature->{type};
 	my $pfname = $pattern_feature->{name};
 	next
 	    unless( defined $pattern->{$pfname});
 	my $sth =
-	    $dbh->prepare("INSERT INTO pf_$pfname (pid, pfid, value) VALUES (?, ?, ?)");
+	    $dbh->prepare("INSERT INTO pf_$pftype (pid, pfid, value) VALUES (?, ?, ?)");
 	try {
 	    $sth->execute($pid, $pattern_feature->{id}, $pattern->{$pfname})
 	} catch {

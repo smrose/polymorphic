@@ -45,9 +45,9 @@ the schema of the SQL database design we are using.</p>
  
  <dt>feature value</dt>
  <dd>Our data design calls for a distinct database table for each pattern
-   feature, used to store feature values. We follow a table naming convention
-   based on the feature name. For example, the table storing values for the
-   <code>title</code> feature is <code>pf_title</code>, which has
+   type, used to store feature values. We follow a table naming convention
+   based on the feature type. For example, the table storing values for the
+   <code>title</code> feature is <code>pf_string</code>, which has
    a <code>value</code> column suitable for storing strings.</dd>
  <dd>Values for all of the feature types - except <code>image</code>
    - are stored in these feature value tables. Image values live in the
@@ -141,10 +141,12 @@ is in the repository.</p>
  <li><a href="#pattern_language">pattern_language</a></li>
  <li><a href="#pattern_template">pattern_template</a></li>
  <li><a href="#pattern_view">pattern_view</a></li>
+ <li><a href="#pf_image">pf_image</a></li>
+ <li><a href="#pf_integer">pf_integer</a></li>
+ <li><a href="#pf_string">pf_string</a></li>
+ <li><a href="#pf_text">pf_text</a></li>
  <li><a href="#plmember">plmember</a></li>
  <li><a href="#pt_feature">pt_feature</a></li>
- <li><a href="#pf_thematicimage">pf_thematicimage</a></li>
- <li><a href="#pf_title">pf_title</a></li>
 </ul>
 
 <p id="pattern_template">A <code>pattern_template</code> is a named set of
@@ -283,11 +285,30 @@ CREATE TABLE pattern_view (
 );
 </pre>
 
-<p id="pf_title">The <code>pf_title</code> table is an example of a feature value table where the
-pattern feature values are of type <code>string</code>.</p>
+<p id="pf_string">The <code>pf_string</code> table is the feature
+value table for pattern feature values of type <code>text</code>.</p>
 
 <pre>
-CREATE TABLE pf_title (
+CREATE TABLE pf_text (
+  id int unsigned NOT NULL AUTO_INCREMENT,
+  pid int unsigned NOT NULL,
+  pfid int unsigned NOT NULL,
+  language char(2) NOT NULL DEFAULT 'en',
+  value mediumtext NOT NULL,
+  PRIMARY KEY (id,language),
+  KEY pid (pid),
+  KEY pfid (pfid),
+  CONSTRAINT FOREIGN KEY (language) REFERENCES language (code),
+  CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern (id),
+  CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature (id)
+);
+</pre>
+
+<p id="pf_string">The <code>pf_string</code> table is the feature
+value table for pattern feature values of type <code>string</code>.</p>
+
+<pre>
+CREATE TABLE pf_string (
   id int unsigned NOT NULL AUTO_INCREMENT,
   pid int unsigned NOT NULL,
   pfid int unsigned NOT NULL,
@@ -302,9 +323,9 @@ CREATE TABLE pf_title (
 );
 </pre>
 
-<p id="pf_thematicimage">The <code>pf_thematicimage</code> table is an
-example of a feature value table where the pattern feature values
-are of type <code>image</code>. The <code>filename</code> column
+<p id="pf_image">The <code>pf_image</code> table is the
+feature value table for  pattern feature values
+of type <code>image</code>. The <code>filename</code> column
 stores the filename of the file that was
 uploaded. The <code>alttext</code> column is for alternative text; a
 value for this field is required. The <code>hash</code> field is an
@@ -312,7 +333,7 @@ SHA1 hash of the file contents, used to name the file and to detect
 when an uploaded file is a duplicate.</p>
 
 <pre>
-CREATE TABLE pf_thematicimage (
+CREATE TABLE pf_image (
   id int unsigned NOT NULL AUTO_INCREMENT,
   pid int unsigned NOT NULL,
   pfid int unsigned NOT NULL,

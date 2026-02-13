@@ -19,7 +19,7 @@
 #  pattern_feature.id values.  We do both here.
 #
 #  That done, adding the feature values to patterns requires inserting
-#  a row in pf_thematicimage with the corresponding pattern.id and
+#  a row in pf_image table with the corresponding pattern.id and
 #  pattern_feature.id values along with the hash field that is needed
 #  to find the image in the file system and the metadata fields.
 #
@@ -56,7 +56,7 @@
 #    fid INT UNSIGNED NOT NULL,
 #    ...
 #   );
-#   CREATE TABLE `pf_thematicimage` (
+#   CREATE TABLE `pf_image` (
 #    id int(10) unsigned NOT NULL AUTO_INCREMENT,
 #    pid int(10) unsigned NOT NULL,
 #    pfid int(10) unsigned NOT NULL,
@@ -81,29 +81,6 @@ require 'creds.pl';
 $dbh = DBI->connect("dbi:mysql:database=$destdb", $destuser, $destpw)
     or die 'connect';
 
-# Create the pf_thematicimage table if necessary.
-
-$dbh->do("CREATE TABLE IF NOT EXISTS pf_thematicimage (
-   id int(10) unsigned NOT NULL AUTO_INCREMENT,
-   pid int(10) unsigned NOT NULL,
-   pfid int(10) unsigned NOT NULL,
-   filename varchar(255) DEFAULT NULL,
-   alttext varchar(1023) NOT NULL,
-   hash char(40) NOT NULL,
-   language char(2) NOT NULL DEFAULT 'en',
-   created timestamp NOT NULL DEFAULT current_timestamp(),
-   modified timestamp NOT NULL DEFAULT current_timestamp()
-    ON UPDATE current_timestamp(),
-   PRIMARY KEY (id),
-   KEY language (language),
-   KEY pid (pid),
-   KEY pfid (pfid),
-   CONSTRAINT FOREIGN KEY (language) REFERENCES language (code),
-   CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern (id),
-   CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature (id)
-)")
-    or die 'create table pf_thematicimage';
-
 # Get the value of pattern_feature.id for the thematicimage feature.
 {
     my @row = $dbh->selectrow_array('SELECT id FROM pattern_feature WHERE name = "thematicimage"');
@@ -120,15 +97,15 @@ unless($pfid) {
 }
 
 # Get the pattern values that use the LV template. We need pattern.id,
-# pattern_template.id, and pf_title.value - the pattern title.
+# pattern_template.id, and the pattern title.
 
 $patterns = $dbh->selectall_hashref('
-SELECT p.id, pt.id AS ptid, pft.value AS title
+SELECT p.id, pt.id AS ptid, pfs.value AS title
  FROM pattern p
   JOIN pattern_template pt ON pt.id = p.ptid
   JOIN pt_feature ptf ON ptf.ptid = pt.id
   JOIN pattern_feature pf ON ptf.fid = pf.id
-  JOIN pf_title pft ON p.id = pft.pid
+  JOIN pf_string pfs ON p.id = pfs.pid
  WHERE pt.name = "Liberating Voices" AND pf.name = "title"', 'title')
     or die 'selectall';
 
@@ -139,9 +116,9 @@ SELECT p.id, pt.id AS ptid, pft.value AS title
     $ptid = $row->{ptid};
 }
 
-# SQL to create a row in pf_thematicimage.
+# SQL to create a row in pf_image.
 
-$sth = $dbh->prepare('INSERT INTO pf_thematicimage
+$sth = $dbh->prepare('INSERT INTO pf_image
   (pid, pfid, filename, alttext, hash)
  VALUES (?,?,?,?,?)');
 

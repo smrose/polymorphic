@@ -118,3 +118,55 @@ CREATE TABLE IF NOT EXISTS pattern_view (
   notes varchar(16383),
   CONSTRAINT FOREIGN KEY (ptid) REFERENCES pattern_template(id)
 );
+--
+-- 'pf_string' is the pattern feature value table for features of type 'string'
+--
+CREATE TABLE IF NOT EXISTS pf_string (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  pid INT UNSIGNED NOT NULL,
+  pfid INT UNSIGNED NOT NULL,
+  language CHAR(2) DEFAULT 'en',
+  value VARCHAR(255) NOT NULL,
+  PRIMARY KEY (id, language),
+  CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id)
+    ON DELETE CASCADE,
+  CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
+    ON DELETE CASCADE
+);
+--
+-- 'pf_text' is the pattern feature value table for features of type 'text'
+--
+CREATE TABLE IF NOT EXISTS pf_text (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  pid INT UNSIGNED NOT NULL,
+  pfid INT UNSIGNED NOT NULL,
+  language CHAR(2) DEFAULT 'en',
+  value MEDIUMTEXT NOT NULL,
+  PRIMARY KEY (id, language),
+  CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id)
+    ON DELETE CASCADE,
+  CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
+    ON DELETE CASCADE
+);
+--
+-- 'pf_image' is the pattern feature value table for features of type 'image'
+--
+CREATE TABLE IF NOT EXISTS pf_image (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  pid INT UNSIGNED NOT NULL,
+  pfid INT UNSIGNED NOT NULL,
+  filename varchar(255) DEFAULT NULL,
+  alttext varchar(1023) NOT NULL,
+  hash char(40) NOT NULL,
+  language char(2) NOT NULL DEFAULT 'en',
+  created timestamp NOT NULL DEFAULT current_timestamp(),
+  modified timestamp NOT NULL DEFAULT current_timestamp()
+    ON UPDATE current_timestamp(),
+  PRIMARY KEY (id),
+  KEY language (language),
+  KEY pid (pid),
+  KEY pfid (pfid),
+  CONSTRAINT FOREIGN KEY (language) REFERENCES language (code),
+  CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
+  CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
+);

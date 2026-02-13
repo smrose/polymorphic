@@ -1,33 +1,48 @@
 <!doctype html>
 <html lang="en">
-<meta charset="utf-8">
 <head>
-    <title>Simple Layout File</title>
+  <meta charset="utf-8">
+  <title>Simple Layout File</title>
 </head>
 <body>
-<title>Simple Layout File</title>
 <pre>
 &lt;!doctype html&gt;
 &lt;html lang="en"&gt;
-&lt;meta charset="utf-8"&gt;
 &lt;head&gt;
+ &lt;meta charset="utf-8"&gt;
  &lt;title&gt;%%title%%&lt;/title&gt;
-&lt;head&gt;
+ &lt;style&gt;
+   body {
+     font-family: sans-serif;
+   }
+   .thematic {
+      float: right;
+      width: 15vw;
+   }
+ &lt;/style&gt;
+&lt;/head&gt;
 &lt;body&gt;
+&lt;img src="%%thematicimage%%" title="%%thematicimage-alttext%%" class="thematic"&gt;
+
 &lt;h1&gt;%%title%%&lt;/h1&gt;
 
-&lt;img src="%%thematicimage%% style="width: 10vw" title="%%thematicimage-alttext%%"&gt;
-
-&lt;h2&gt;Problem&lt;/p&gt;
+&lt;h2&gt;Problem&lt;/h2&gt;
 
 &lt;p&gt;%%problem%%&lt;/p&gt;
 
-&lt;h2&gt;Solution&lt;/p&gt;
+&lt;h2&gt;Discussion&lt;/h2&gt;
+
+&lt;p&gt;%%discussion%%&lt;/p&gt;
+
+&lt;h2&gt;Context&lt;/h2&gt;
+
+&lt;p&gt;%%context%%&lt;/p&gt;
+
+&lt;h2&gt;Solution&lt;/h2&gt;
 
 &lt;p&gt;%%solution%%&lt;/p&gt;
 
 &lt;/body&gt;
 &lt;/html&gt;
-</pre>
 </body>
-</html.
+</html>
