@@ -2269,6 +2269,7 @@ if($pvid = $_REQUEST['dlpvl']) {
     header("Content-Disposition: attachment; filename=$filename;");
     header('Content-Transfer-Encoding: binary');
     header("Content-Length: $length");
+    print $pv['layout'];
   }
   exit();
 }
