@@ -76,7 +76,7 @@ function DisplayPattern($pattern, $pv) {
 } /* end DisplayPattern() */
 
 
-$pv = GetPV('id', $pvid = $_REQUEST['pvid']);
+$pv = GetPV($pvid = $_REQUEST['pvid']);
 $pattern = GetPattern($pid = $_REQUEST['pid']);
 $action = $_REQUEST['pattern'];
 
