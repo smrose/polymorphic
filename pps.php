@@ -10,6 +10,7 @@
  * FUNCTIONS
  *
  *  DataStoreConnect  open a database connection
+ *  BeginTransaction  begin a database transaction
  *  CountPatterns     count of pattern using a template
  *  GetPatterns       fetch pattern records
  *  GetPattern        fetch a pattern with its features
@@ -60,7 +61,8 @@
  
 require 'db.php';
 
-define('FOOT', '<div id="foot"><a href="https://www.publicsphereproject.org/">Public Sphere Project</a></div>');
+define('FOOT', '<div id="foot"><a href="https://www.publicsphereproject.org/">Public Sphere Project</a></div>
+');
 define('DEBUG', true);
 
 # TYPE is a catalog of human-readable feature types => database types
@@ -108,6 +110,32 @@ function DataStoreConnect() {
   $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
   
 } /* end DataStoreConnect() */
+
+
+/* BeginTransaction()
+ *
+ *  Begin a database transaction.
+ */
+
+function BeginTransaction() {
+  global $pdo;
+
+  $pdo->beginTransaction();
+  
+} /* end BeginTransaction() */
+
+
+/* CommitTransaction()
+ *
+ *  Commit a database transaction.
+ */
+
+function CommitTransaction() {
+  global $pdo;
+
+  $pdo->commit();
+  
+} /* end CommitTransaction() */
 
 
 /* CountPatterns()
@@ -416,8 +444,8 @@ function GetPLs($which = null, $withpatterns = null) {
  *  Get the pattern_view with the argument id.
  */
 
-function GetPV($column, $value) {
-  $pvs = GetPVs([$column => $value]);
+function GetPV($id) {
+  $pvs = GetPVs(['pv.id' => $id]);
   return ($pvs && count($pvs) == 1) ? array_pop($pvs) : false;
   
 } /* end GetPV() */
@@ -445,7 +473,10 @@ function GetPVs($which = null) {
     $q = '';
     $u = [];
   }
-  $query = "SELECT * FROM pattern_view $q";
+  $query = "SELECT pv.*, pt.name AS ptname
+ FROM pattern_view pv
+  JOIN pattern_template pt ON pv.ptid = pt.id
+ $q";
 
   try {
     $sth = $pdo->prepare($query);
@@ -1022,7 +1053,8 @@ function InsertPV($params) {
   $params['name'] = trim($params['name']);
   if(!strlen($params['name']))
     Error('Name of view may not be empty.');
-  if(GetPV('name', $params['name']))
+  $pvs = GetPVs(['name' => $params['name']]);
+  if(count($pvs))
     Error("There is already a pattern view with name \"{$params['name']}\" and there cannot be two.");
   $sql = 'INSERT INTO pattern_view(name, notes, layout, ptid)
  VALUES(:name, :notes, :layout, :ptid)';
@@ -1047,7 +1079,7 @@ function InsertPV($params) {
 function UpdatePV($update) {
   global $pdo;
 
-  $pv = GetPV('id', $update['id']);
+  $pv = GetPV($update['id']);
   $q = '';
   $u = [];
   foreach($update as $k => $v) {

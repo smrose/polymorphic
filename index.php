@@ -140,10 +140,8 @@ const ADDFEATURES = 'Accept and add features';
 
 function SelectTemplate($context) {
   $templates = GetTemplates();
-  $zlabel = (isset($context['zlabel']))
-    ? $context['zlabel'] : 'Select a template';
   $seltemplate = "<select name=\"template_id\" id=\"template_id\">
- <option value=\"0\">$zlabel</option>
+ <option value=\"0\"></option>
 ";
   
   print "<h2>{$context['label']}</h2>\n";
@@ -237,7 +235,7 @@ $submit
 function SelectFeature() {
   $features = GetFeatures();
   $menu = '<select name="feature_id" id="feature_id">
- <option value="0">Select feature</option>
+ <option value="0"></option>
 ';
   foreach($features as $feature) {
     $menu .= " <option value=\"{$feature['id']}\" title=\"{$feature['notes']}\">{$feature['name']} - {$feature['type']}</option>\n";
@@ -758,7 +756,7 @@ function SelectPattern($template_id = null) {
     if(!count($patterns))
       Error('No patterns found for this tempate');
     $selpattern = '<select name="pattern_id" id="pattern_id">
- <option value="0">Select a pattern</option>
+ <option value="0"></option>
 ';
     foreach($patterns as $pattern) {
       $title = (isset($pattern['title']))
@@ -839,8 +837,10 @@ function ViewPattern($context) {
     # the case of a template with a single view, the view id is in
     # a hidden field.
 
+    $alerts = '';
     $pl = GetPL($plid = $context['plid']);
     $plmembers = GetPLMembers($plid);
+    $templates = GetTemplates();
 
     # Which templates participate?
     
@@ -859,38 +859,45 @@ function ViewPattern($context) {
       $pvs[$ptid] = GetPVs(['ptid' => $ptid]);
       if(isset($pvs[$ptid])) {
 
-        # there is at least one view for this template
-        
         if(($ptids[$ptid] = count($pvs[$ptid])) > 1) {
 
           # there are multiple views for this template; offer a popup
           
           $multi++;
-          $template = GetTemplate($ptid);
+          $template = $templates[$ptid];
           $pvsels[$ptid] = "<div class=\"fname\">
   Select a view for template <code>{$template['name']}</code>:
  </div>
  <div>
   <select name=\"pvid-$ptid\" id=\"pvid-$ptid\" class=\"selv\">
-   <option value=\"0\">Select</option>
+   <option value=\"0\"></option>
 ";
           foreach($pvs[$ptid] as $pv)
             $pvsels[$ptid] .= "   <option value=\"{$pv['id']}\">{$pv['name']}</option>\n";
           $pvsels[$ptid] .= '  </select>
  </div>
 ';
-        } else {
+        } elseif(count($pvs[$ptid])) {
 
           # there is one view for this template; use hidden element
 
 	  $pv = array_shift($pvs[$ptid]);
           $pvid = $pv['id'];
           $pvsels[$ptid] = "<input type=\"hidden\" name=\"pvid-$ptid\" id=\"pvid-$ptid\" value=\"$pvid\" class=\"selv\">\n";
-        }
-      }
-    }
+        } else {
+	
+	  /* there are no pattern views for this template, complain */
 
-    # $titles is a sorted-by-title array of arrays with 'title',
+	  $template = $templates[$ptid];
+	  if(strlen($alerts))
+	    $alerts .= "<br>\n";
+	  $alerts .= "There are no pattern views defined for template <em>{$template['name']} </em>";
+	}
+      }
+
+    } /* end loop on participating templates */
+    
+    # Build $titles as a sorted-by-title array of arrays with 'title',
     # 'ptid', and 'id' fields, one per pattern
 
     $titles = [];
@@ -908,26 +915,30 @@ function ViewPattern($context) {
     print "<h2>View <em>{$pl['name']}</em> Patterns</h2>\n";
 
     if($multi > 1) {
-      print "<p>Select a pattern view for each template. Click on a linked pattern title to view that pattern with that view.</p>\n";
+      Alert('Select a pattern view for each template. Click on a linked pattern title to view that pattern with that view.');
       $display = '';
     } elseif($multi) {
-      print "<p>Select a pattern view for this template. Click on a linked pattern title to view that pattern with that view.</p>\n";
+      Alert('Select a pattern view for this template. Click on a linked pattern title to view that pattern with that view.');
       $display = '';
     } else {
       Alert('Click on a linked pattern title to view that pattern.');
       $display = ' style="display: none"';
     }
+      
     print "<div class=\"featureform\" id=\"pview\"$display>
 ";
 
     foreach($pvsels as $pvsel)
       print $pvsel;
 
-    print "</div>
+    print "</div>\n";
+    
+    if(strlen($alerts))
+      Alert($alerts);
 
-<ul id=\"ice\">\n";
+    print "<ul id=\"ice\">\n";
     foreach($titles as $title)
-      print " <li><a data-pid=\"{$title['id']}\" data-ptid=\"{$title['ptid']}\">{$title['title']}</a></li>\n";
+      print " <li><a data-pid=\"{$title['id']}\" data-ptid=\"{$title['ptid']}\" title=\"template {$templates[$title['ptid']]['name']}\">{$title['title']}</a></li>\n";
     print "</ul>
 <p><a href=\"./\">Continue</a>.</p>
 
@@ -1037,8 +1048,6 @@ function ViewPattern($context) {
             setpv2(selv)
         }
   </script>
-</html>
-</script>
 ";
 
   } else {
@@ -1048,7 +1057,7 @@ function ViewPattern($context) {
     $pls = GetPLs();
     $wpls = GetPLs(null, true);
     $selpl = '<select name="plid">
-   <option value="0">Select pattern language</option>
+   <option value="0"></option>
   ';
     foreach($pls as $pl) {
       $disabled = array_key_exists($pl['id'], $wpls)
@@ -1105,7 +1114,7 @@ function ManageFeatures($template_id) {
     # there is at least one feature not used by this template; offer to add
     
     $fmenu = '<select name="feature_id" id="featuresel">
- <option value="0">Select</option>
+ <option value="0"></option>
 ';
     foreach($ufeatures as $ufeature) {
       $fmenu .= " <option value=\"{$ufeature['id']}\">{$ufeature['name']} - {$ufeature['type']}</option>\n";
@@ -1390,6 +1399,8 @@ function RemoveFeatures($template_id, $features) {
 
 function AbsorbPatternUpdate() {
 
+  BeginTransaction();
+
   $pattern_id = $_REQUEST['id'];
   $pattern = GetPattern($pattern_id);
   $features = $pattern['features'];
@@ -1433,6 +1444,8 @@ function AbsorbPatternUpdate() {
 
       $file = $_FILES[$id];
       $file['alttext'] = trim($v);
+      if(!length($file['alttext']))
+        Error('Provide a non-empty value for alternative text');
 
       if($haveUpload = ($file['error'] != NOFILE))
         $file = CheckFile($file);
@@ -1501,6 +1514,7 @@ function AbsorbPatternUpdate() {
     UpdatePattern($pattern_id, $_REQUEST['notes']);
     $did = true;
   }
+  CommitTransaction();
   return $did;
   
 } /* end AbsorbPatternUpdate() */
@@ -1512,6 +1526,7 @@ function AbsorbPatternUpdate() {
  */
 
 function AbsorbNewPattern() {
+  BeginTransaction();
 
   // collect the features specified in the form
   
@@ -1570,7 +1585,7 @@ function AbsorbNewPattern() {
       ]);
     }
   }
-
+  CommitTransaction();
   return GetPattern($pattern['id']);
   
 } /* end AbsorbNewPattern() */
@@ -1586,7 +1601,7 @@ function TemplateMenu($id = null, $multi = false) {
   $tm = '<select id="template_id" name="template_id"' . ($multi ? ' multiple' : '') . '>
 ';
   if(!$multi)
-    $tm .= " <option value=\"0\">Select a pattern template</option>\n";
+    $tm .= " <option value=\"0\"></option>\n";
 
   foreach($pts as $pt) {
     $selected = (isset($id) && $id == $pt['id']) ? ' selected="selected"' : '';
@@ -1686,7 +1701,7 @@ function SelectPL($context) {
   $ppls = GetPLs(null, true); # pls with pattern counts
   
   $selpl = "<select name=\"plid\" id=\"plid\">
- <option value=\"0\">Select a pattern language</option>
+ <option value=\"0\"></option>
 ";
   $submit = '';
   foreach($context['submit'] as $sub) {
@@ -1744,10 +1759,20 @@ function SelectPL($context) {
 
 function SelectPV($context) {
   $pvs = GetPVs();
+  $pvsbyt = [];
+  foreach($pvs as $pv)
+    $pvsbyt[$pv['ptid']][] = $pv;
   
   $selpv = "<select name=\"pvid\" id=\"pvid\">
- <option value=\"0\">Select a pattern view</option>
+ <option value=\"0\"></option>
 ";
+  foreach($pvsbyt as $ptid => $pvbyt) {
+    $selpv .= " <optgroup label=\"{$pvbyt[0]['ptname']}\">\n";
+    foreach($pvbyt as $pv)
+      $selpv .= " <option value=\"{$pv['id']}\">{$pv['name']}</option>\n";
+    $selpv .= " </optgroup>\n";
+  }
+
   $submit = '';
   foreach($context['submit'] as $sub) {
     if(array_key_exists('id', $sub))
@@ -1760,10 +1785,6 @@ function SelectPV($context) {
 
   print "<h2>{$context['label']}</h2>\n";
   
-  foreach($pvs as $pv)
-    $selpv .= " <option value=\"{$pv['id']}\">{$pv['name']}</option>\n";
-  $selpv .= "</select>\n";
-
   print "<form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\" id=\"selectpv\">
  <input type=\"hidden\" name=\"{$context['context']}\" value=\"{$context['action']}\">
 
@@ -1813,7 +1834,7 @@ function PVForm($id = null) {
     $context = "<input type=\"hidden\" name=\"pvid\" value=\"$id\">\n";
     $tmenu = TemplateMenu($pv['ptid']);
     if($l = strlen($pv['layout']))
-      $existing = "($l characters)";
+      $existing = "(<a href=\"?dlpvl={$pv['id']}\" title=\"download this layout\">$l characters</a>)";
   } else {
 
     // adding a pattern view
@@ -1821,7 +1842,7 @@ function PVForm($id = null) {
     $title = 'Add Pattern View';
     $name_value = $notes_value = $delete = '';
     $tmenu = TemplateMenu();
-    $existing = '';
+    $existing = '(undefined)';
   }
   print "<h2>$title</h2>
 
@@ -1932,7 +1953,7 @@ function AbsorbPV() {
     # working on an update
     
     $pvid = $_REQUEST['pvid'];
-    $pv = GetPV('id', $pvid);
+    $pv = GetPV($pvid);
     if(!$pv)
       Error('No such pattern view found');
     $update = ['id' => $pvid];
@@ -2237,6 +2258,20 @@ exist, per template.</p>
 } /* end Status() */
 
 
+if($pvid = $_REQUEST['dlpvl']) {
+
+  // user clicked on link to download a pattern_view.layout
+
+  if(($pv = GetPV($pvid)) && strlen($pv['layout'])) {
+    $filename = "{$pv['name']}.layout";
+    $length = strlen($pv['layout']);
+    header('Content-Type: application/octet-stream');
+    header("Content-Disposition: attachment; filename=$filename;");
+    header('Content-Transfer-Encoding: binary');
+    header("Content-Length: $length");
+  }
+  exit();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -2729,7 +2764,6 @@ if(!$SuppressMain) {
 <?php
 }
 ?>
-</div>
 <?=FOOT?>
 </body>
 </html>
