@@ -168,5 +168,6 @@ CREATE TABLE IF NOT EXISTS pf_image (
   KEY pfid (pfid),
   CONSTRAINT FOREIGN KEY (language) REFERENCES language (code),
   CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
-  CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id)
+  CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id),
+  CONSTRAINT CHECK length(alttext) > 0
 );
