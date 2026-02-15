@@ -1829,7 +1829,7 @@ function PVForm($id = null) {
       Error("Pattern view not found.");
     $name_value = " value=\"{$pv['name']}\"";
     $notes_value = $pv['notes'];
-    $delete = '';
+    $delete = '<input type="submit" name="submit" value="Delete">';
     $title = 'Edit Pattern View';
     $context = "<input type=\"hidden\" name=\"pvid\" value=\"$id\">\n";
     $tmenu = TemplateMenu($pv['ptid']);
@@ -2509,7 +2509,10 @@ if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
     PVForm();
     $SuppressMain = true;
   } elseif($_REQUEST['pv'] == 'absorb_pv') {
-    AbsorbPV();
+    if($_REQUEST['submit'] == 'Delete')
+      DeletePV($_REQUEST['pvid']);
+    else
+      AbsorbPV();
   }
   
 } elseif(isset($_REQUEST['pl'])) {

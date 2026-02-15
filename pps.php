@@ -40,6 +40,7 @@
  *  InsertPL          insert a pattern_language
  *  InsertPV          insert a pattern_view
  *  UpdatePV          update a pattern_view
+ *  DeletePV          buh-bye!
  *  GetPLMembers      get plmember records
  *  UpdatePLMembers   members come, members go - it is what it is
  *  InsertPLMember    insert a plmember record
@@ -1053,7 +1054,7 @@ function InsertPV($params) {
   $params['name'] = trim($params['name']);
   if(!strlen($params['name']))
     Error('Name of view may not be empty.');
-  $pvs = GetPVs(['name' => $params['name']]);
+  $pvs = GetPVs(['pt.name' => $params['name']]);
   if(count($pvs))
     Error("There is already a pattern view with name \"{$params['name']}\" and there cannot be two.");
   $sql = 'INSERT INTO pattern_view(name, notes, layout, ptid)
@@ -1100,6 +1101,26 @@ function UpdatePV($update) {
   return false;
   
 } /* end UpdatePV() */
+
+
+/* DeletePV()
+ *
+ *  Delete the pattern_view record selected by the argument id.
+ */
+
+function DeletePV($id) {
+  global $pdo;
+
+  try {
+    $sth = $pdo->prepare('DELETE FROM pattern_view WHERE id = ?');
+    $sth->execute([$id]);
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
+  }
+  return $sth->rowCount();
+  
+} /* end DeletePV($id) */
 
 
 /* GetPLMembers()
