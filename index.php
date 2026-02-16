@@ -979,7 +979,7 @@ function ViewPattern($context) {
 
         // call this script with query parameters
 
-        window.open('viewpattern.php?pid=' + pid + '&pvid=' + pvid)
+        window.open('viewpattern.php?id=' + pid + '.' + pvid)
         
     } // end contain()
 
@@ -2269,7 +2269,8 @@ exist, per template.</p>
 } /* end Status() */
 
 
-if($pvid = $_REQUEST['dlpvl']) {
+if(isset($_REQUEST['dlpvl'])) {
+  $pvid = $_REQUEST['dlpvl'];
 
   // user clicked on link to download a pattern_view.layout
 

@@ -5,17 +5,18 @@
  *
  * CONCEPT
  *
- *  Display a pattern in a container.
+ *  Display patterns in a container.
  *
  * NOTES
  *
  *  Call this script with these query parameters:
  *
- *    action  if 'view', display the pattern; if empty, display a container
- *       pid  a value of pattern.id
- *      pvid  a value of pattern_view.id
+ *    action  if 'view', display the single pattern using the specified view; if
+ *            empty emit a container with with an iframe for each pattern
  *
- *  We use an iframe to wrap the rendered pattern with a cluse button at the
+ *        id  values of <pattern.id> . '.' . <pattern_view.id>, comma-separated
+ *
+ *  We use an iframe to wrap the rendered patterns with a close button at the
  *  bottom of the viewport.
  */
  
@@ -76,85 +77,132 @@ function DisplayPattern($pattern, $pv) {
 } /* end DisplayPattern() */
 
 
-$pv = GetPV($pvid = $_REQUEST['pvid']);
-$pattern = GetPattern($pid = $_REQUEST['pid']);
-$action = $_REQUEST['pattern'];
+/* serror()
+ *
+ *  It went sideways.
+ */
 
-if(!$pv || !$pattern)
-  print '<!DOCTYPE html>
-<html>
+function serror($msg) {
+  print "<!DOCTYPE html>
+<html lang=\"en\">
 <head>
+ <meta charset=\"utf-8\">
  <title>System Error</title>
+ <style>
+  .error {
+    font-weight: bold;
+    font-size: 16pt;
+    color: #600;
+  }
+ </style>
 </head>
 <body>
  <h1>System Error</h1>
+
+ <p class=\"error\">$msg</p>
 </body>
 </html>
-';
+";
+  exit();
+  
+} /* end serror() */
 
+
+# Main program.
+
+if(!isset($_REQUEST['id']))
+  serror('No patterns specified');
+
+if(!(count($ids = explode(',', $_REQUEST['id']))))
+  serror('Pattern/view specification is malformed');
+
+# Build $d[], an array of arrays each with 'pid' and 'pvid' fields.
+
+$d = [];
+foreach($ids as $id) {
+  if(!preg_match('/^(\d+)\.(\d+)$/', $id, $matches))
+    serror('Faulty query parameters');
+  $d[] = [
+    'pid' => $matches[1],
+    'pvid' => $matches[2]
+  ];
+}
+  
 if($_REQUEST['action'] == 'view') {
 
-  # process the pattern in this view and print it
+  # display this pattern
   
-  DisplayPattern($pattern, $pv);
+  if(count($d) != 1)
+    serror('Specify a single pattern and view for display');
+    
+  if(!($pattern = GetPattern($pid = $d[0]['pid'])))
+    serror("No pattern with id $pid was found");
+  if(!($pview = GetPV($pvid = $d[0]['pvid'])))
+    serror("No pattern view with id $pvid was found");
+
+  DisplayPattern($pattern, $pview);
   exit();
 
 } else {
 
-  # emit a container with an iframe and a close button
+  # Emit a container with an iframe for each pattern and a close button
+  # at the bottom of the page.
 
-  $url = "?action=view&pid=$pid&pvid=$pvid";
-  $title = $pattern['features']['title']['value'];
-?>
-<!DOCTYPE html>
-<html>
-  <head>
-    <title><?=$title?></title>
-    <style>
+print "<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+  <meta charset=\"utf-8\">
+  <title>Patterns</title>
+  <style>
       body {
-	  font-family: sans-serif;
-	  background-color: #eee;
+          font-family: sans-serif;
+          background-color: #eee;
       }
-      #contain {
-	  height: 90vh;
-	  width: 96vw;
-	  border: 1px solid black;
-	  margin-left: 2vw;
-	  background-color: white;
+      .contain {
+          height: 90vh;
+          width: 98vw;
+          border: 1px solid black;
+          margin-left: 1vw;
+          background-color: white;
       }
       #closeme {
-	  margin-top: 2vh;
-	  padding: .5em;
-	  width: max-content;
-	  border: 1px solid black;
-	  background-color: #ddd;
-	  left: 50%;
-	  position: fixed;
-	  font-weight: bold;
+          margin-top: 2vh;
+          padding: .5em;
+          width: max-content;
+          border: 1px solid black;
+          background-color: #ddd;
+          left: 50%;
+          position: fixed;
+          font-weight: bold;
       }
       #closeme:hover {
           cursor: pointer;
-	  background-color: #eee;
+          background-color: #eee;
       }
-    </style>
+  </style>
 
-    <script>
+  <script>
       function init() {
-	  document.querySelector('#closeme').addEventListener('click', () => {
-	      window.close()
-	  })
+          document.querySelector('#closeme').addEventListener('click', () => {
+              window.close()
+          })
       }
-    </script>
+  </script>
     
-  </head>
+</head>
 
-  <body onload="init()">
-    <iframe id="contain" title="iframe example" src="<?=$url?>"></iframe>
-    <div id="closeme">Close</div>
-  </body>
-
+<body onload=\"init()\">
+";
+  foreach($d as $p) {
+    $url = "{$_SERVER['SCRIPT_NAME']}?action=view&id={$p['pid']}.{$p['pvid']}";
+    $title = $pattern['features']['title']['value'];
+    print "      <iframe class=\"contain\" src=\"$url\"></iframe>
+";
+  }
+  print "      <div id=\"closeme\">Close</div>
+</body>
 </html>
-<?php
+";
 }
 exit();
 
