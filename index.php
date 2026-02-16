@@ -1455,7 +1455,7 @@ function AbsorbPatternUpdate() {
 
       $file = $_FILES[$id];
       $file['alttext'] = trim($v);
-      if(!length($file['alttext']))
+      if(!strlen($file['alttext']))
         Error('Provide a non-empty value for alternative text');
 
       if($haveUpload = ($file['error'] != NOFILE))
