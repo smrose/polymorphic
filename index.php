@@ -883,7 +883,7 @@ function ViewPattern($context) {
 
 	  $pv = array_shift($pvs[$ptid]);
           $pvid = $pv['id'];
-          $pvsels[$ptid] = "<input type=\"hidden\" name=\"pvid-$ptid\" id=\"pvid-$ptid\" value=\"$pvid\" class=\"selv\">\n";
+          $pvsels[$ptid] = "<input type=\"hidden\" name=\"pvid-$ptid\" id=\"pvid-$ptid\" value=\"$pvid\" class=\"selv\" data-text=\"{$pv['name']}\">\n";
         } else {
 	
 	  /* there are no pattern views for this template, complain */
@@ -938,7 +938,7 @@ function ViewPattern($context) {
 
     print "<ul id=\"ice\">\n";
     foreach($titles as $title)
-      print " <li><a data-pid=\"{$title['id']}\" data-ptid=\"{$title['ptid']}\" title=\"template {$templates[$title['ptid']]['name']}\">{$title['title']}</a></li>\n";
+      print " <li><a data-pid=\"{$title['id']}\" data-ptid=\"{$title['ptid']}\" data-tname=\"{$templates[$title['ptid']]['name']}\">{$title['title']}</a></li>\n";
     print "</ul>
 <p><a href=\"./\">Continue</a>.</p>
 
@@ -1006,19 +1006,30 @@ function ViewPattern($context) {
             return false
         ptid = found[1]
         viewid = el.value
-        state = (viewid != 0)
+        if(state = (viewid != 0)) {
+	    if(el.options)
+	        vname = el.options[el.selectedIndex].text
+	    else
+	        vname = el.dataset.text
+	} else
+	    vname = ''
         for(anchor of anchors)
             if(anchor.dataset.ptid == ptid)
-                ablef(anchor, state)
+                ablef(anchor, state, vname)
     } /* end setpv2() */
 
 
     /* ablef()
      *
-     *  Add or remove 'linklike' class from argument element.
+     *  Add or remove 'linklike' class from argument element and set title
+     *  attribute.
      */
 
-    function ablef(element, state) {
+    function ablef(element, state, vname) {
+        title = 'Template: ' + element.dataset.tname
+	if(vname.length > 0)
+	  title += '; View: ' + vname
+        element.title = title
         if(state) // enable
             element.classList.add('linklike')
         else      // disable
