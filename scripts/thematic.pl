@@ -6,7 +6,7 @@
 #
 # CONCEPT
 #
-#  Get data about thematic images from www.publicspherepronect.org/patterns/lv.
+#  Get data about thematic images from www.publicsphereproject.org/patterns/lv.
 #
 # NOTES
 #
