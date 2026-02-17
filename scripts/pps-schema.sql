@@ -14,7 +14,7 @@ CREATE DATABASE IF NOT EXISTS pps
  CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci;
 use pps;
 GRANT ALL PRIVILEGES ON pps.* TO 'pps'@'localhost'
- IDENTIFIED BY 'Pa++3rn 5ph3r3';
+ IDENTIFIED BY '<FIX-ME>';
 FLUSH PRIVILEGES;
 --
 -- create pattern_template
