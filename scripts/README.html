@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <title>Building the Toy Application</title>
+    <style>
+      dt {
+	  font-weight: bold;
+	  margin-left: 1em;
+      }
+      dd {
+	  margin-bottom: .3em;
+      }
+      h1, h2 {
+	  font-family: sans-serif;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Building the Toy Application</h1>
+
+    <p>We are building a toy application to test and work with
+      patterns using a "polymorphic" design, by which we mean a design
+      in which different patterns needn't share a common set of
+      features. It's an evolution of the Public Sphere Project
+      <em>Pattern Sphere</em>.</p>
+
+     <p>See <a href="../README.html">Polymorphic Pattern
+      Sphere Schema</a> for an overview of the schema and the
+      functionality of the toy application. This document focuses on
+      how to build a development environment for working on the
+      application.</p>
+
+    <p>Part of the process of setting up a development environment
+      involves loading the patterns from the <em>Liberating
+      Voices</em> pattern language as they are represented in
+      the <a href="htttps://labs.publicsphereproject.org/ps">
+      Pattern Sphere</a> application.</p>
+
+    <p>An instance of the application is at
+      <a href="https://analydia.net/publicsphereproject/polymorphic/">
+	https://analydia.net/publicsphereproject/polymorphic/</a>. Access
+      to that resource is protected by basic
+      auth. Contact <a href="mailto:rose@publicsphereproject.org">
+      rose@publicsphereproject.org</a> to request access.</p>
+
+    <p>There is a public Github repository for the application
+      at <a href="https://github.com/smrose/polymorphic">github.com/smrose/polymorphic</a>.</p>
+
+    <h2>Scripts</h2>
+
+    <p>There is a <code>scripts/</code> directory in the Github
+      repository with the following files:</p>
+
+    <dl>
+
+      <dt>pps-schema.sql</dt>
+      <dd>This file of pure SQL builds the <code>pps</code> database. To run it,
+	you need a recent-vintage MySQL or MariaDB database server and
+	a database account with privileges to create databases. It
+	will create a <code>pps@localhost</code> database user and all
+	the tables. Before you run it (<code>mysql < pps-schema.sql</code>),
+        edit it to set a password for the <code>pps@localhost</code> user in
+        the <code>GRANT ALL PRIVILEGES</code> line near the start.</dd>
+      
+      <dt>pps-schema-lv-ps.sql</dt>
+
+      <dd>This file of pure SQL creates the rows in the <code>pattern_feature</code>,
+	<code>pattern_template</code>, <code>pattern_language</code>,
+	and <code>pattern_view</code> tables needed to support the
+	import of <em>Liberating Voices</em> patterns from
+	the <em>Pattern Sphere</em>. It does not perform the import or
+	set a layout value in the pattern view.</dd>
+
+      <dt>pps-patterns-lv-ps.pl</dt>
+      
+      <dd>This is the script, written in perl5, that performs the
+	actual import of patterns. It does it by opening connections to
+	both the <code>ps</code> database used by the <em>Pattern Sphere</em>
+	application and the <code>pps</code> database used by the toy application
+        and copying the pattern data from the former into th latter.</dd>
+
+      <dd>For this script to work, you need read access to an instance
+	of <code>ps</code> and write access to <code>pps</code>. The
+	connection details are stored in the file <code>creds.pl</code>,
+	which is not stored in GitHub and must be created locally. Here is
+	a template for it:
+	<pre>
+Readonly $sourcedb => 'ps';
+Readonly $destdb => 'pps';
+Readonly $sourceuser => 'root';
+Readonly $destuser => 'pps';
+Readonly $sourcepw => 'FIXME';
+Readonly $destpw => 'FIXME';
+</pre></dd>
+
+      <dt>thematic.pl</dt>
+
+      <dd>The version of the <em>Liberating Voices</em> patterns in the Drupal install
+       at <a href="https://www.publicspherepronect.org/patterns/lv">
+       www.publicspherepronect.org/patterns/lv</a> offers a per-pattern thematic image.
+       This perl5 script uses the <code>HTML::TreeBuilder</code> perl module to harvest
+       information about those images from the site, storing the data in an SQLite3 database
+       in <code>thematic/thematic.db</code> that it creates for the purpose. You must create
+       <code>thematice/</code> yourself.</dd>
+       
+      <dt>get_thematic.pl</dt>
+      
+      <dd>Once <code>thematic.pl</code> has been run, run this perl script to fetch the
+       thematic images into the <code>thematic/</code> directory, where they are named
+       with the pattern titles.</dd>
+       
+      <dt>add_thematic.pl<dt>
+
+      <dd>Once <code>get_thematic.pl</code> has been run, this script
+       imports the image files. That involves copying them to
+       <code>/var/www/html/publicsphereproject/polymorphic/images/</code>
+       (<code>/var/www/html/</code> is the document root for Apache
+       httpd on Fedora Linux so this path will need to be edited for
+       other systems) and creating database structures to support
+       them: a row in <code>pattern_feature</code> named
+       <code>thematicimage</code> and a row in <code>pf_image</code> for
+       each image.</dd>
+
+      <dd>Our scheme for storing graphic images involves naming them with the
+       value of their SHA1 hash. This script manages that.</dd>
+
+      <dd>The tree used for storing images must be writable as the web
+      server user.</dd>
+
+      <dt>revert</dt>
+
+      <dd>As the schema evolves, it's generally simpler to start with
+       an empty database than to modify structures in
+       place. <code>revert</code>, a BASH script, manages most of that
+       by dropping the existing database, then running
+       <code>pps-schema.sql</code>, <code>pps-schema-lv-ps.sql</code>,
+       and <code>pps-patterns-lv.ps.pl</code> in order. However, it
+       doesn't run <code>add_thematic.pl</code>.</dd>
+
+      <dd><code>revert</code> is robust to being run when the database doesn't exist.</dd>
+
+    </dl>
+
+<h2>Setup an Instance</h2>
+
+<p>Here's the general process of setting up an instance:</p>
+
+<ol>
+
+ <li> Clone the repository to a directory under the document root of your web server.</li>
+
+ <li> Create <code>scripts/creds.pl</code> to allow perl scripts to access the databases.</li>
+
+ <li> Create <code>db.php</code> to allow the application to access the database. It looks like
+  this:
+ <pre>
+&lt;?php
+const DSN = 'mysql:host=localhost;dbname=pps';
+const USER = 'pps';
+const PW = '<FIX-ME>';
+define('ROOTDIR', '/publicsphereproject/polymorphic');
+?>
+ </pre></li>
+
+ <li>Create <code>local.css</code>. All this file does is change the background color of the
+   application to remind the developer of which host is being used.
+   <pre>
+body {
+    background-color: #fee;
+}
+#foot {
+    background-color: #fee;
+}
+</pre></li>
+
+ <li> Edit the database password into <code>pps-schema.sql</code>. Be careful not to upload that
+  to github with the password in it.</li>
+
+ <li> Move into <code>scripts/</code> and run
+  <code>revert</code>. As-written, this requires that suitable
+  credentials be stored in <code>~/.my.cnf</code> or you will be
+  prompted for a password.</li>
+
+ <li> Run the three perl5 scripts to add thematic images. That may require that
+  some perl5 modules be installed first.</li>
+
+</ol>
+
+  </body>
+</html>
