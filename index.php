@@ -2290,6 +2290,7 @@ if(isset($_REQUEST['dlpvl'])) {
 <html lang="en">
 
 <head>
+ <meta charset="utf-8">
  <title>Polymorphic Pattern Sphere</title>
  <link rel="stylesheet" href="local.css">
  <link rel="stylesheet" href="pps.css">
