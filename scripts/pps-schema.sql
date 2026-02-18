@@ -171,11 +171,12 @@ CREATE TABLE IF NOT EXISTS pf_image (
   CONSTRAINT FOREIGN KEY (language) REFERENCES language (code),
   CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
   CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id),
-  CONSTRAINT CHECK length(alttext) > 0
+  CONSTRAINT CHECK (length(alttext) > 0)
 );
 --
 -- 'rankit' sets plmember.rank to 1 higher than the max on INSERT
 --
+DELIMITER //
 CREATE TRIGGER rankit BEFORE INSERT ON plmember FOR EACH ROW
 BEGIN
   DECLARE maxrank int unsigned;
@@ -186,6 +187,7 @@ BEGIN
      SET new.rank = maxrank + 1;
   END IF;
 END
+//
 --
 -- delpm(plid, pid) deletes the plmember row matching the arguments, then
 -- adjusts the plmember.rank values to fill the gap.
@@ -211,4 +213,4 @@ BEGIN
    END LOOP;
    
 END
-
+//
