@@ -100,9 +100,11 @@ CREATE TABLE IF NOT EXISTS pattern_feature (
 CREATE TABLE IF NOT EXISTS plmember (
   pid int unsigned NOT NULL,
   plid int unsigned NOT NULL,
+  rank int unsigned NOT NULL,
   CONSTRAINT UNIQUE(plid, pid),
   FOREIGN KEY (pid) REFERENCES pattern(id),
-  FOREIGN KEY (plid) REFERENCES pattern_language(id)
+  FOREIGN KEY (plid) REFERENCES pattern_language(id),
+  CONSTRAINT UNIQUE (plid, rank)
 );
 --
 -- 'pattern_view' describes how pattern features are displayed in a context.
@@ -171,3 +173,42 @@ CREATE TABLE IF NOT EXISTS pf_image (
   CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id),
   CONSTRAINT CHECK length(alttext) > 0
 );
+--
+-- 'rankit' sets plmember.rank to 1 higher than the max on INSERT
+--
+CREATE TRIGGER rankit BEFORE INSERT ON plmember FOR EACH ROW
+BEGIN
+  DECLARE maxrank int unsigned;
+  SET maxrank = (SELECT max(rank) FROM plmember WHERE plid = new.plid);
+  IF maxrank IS NULL THEN
+    SET new.rank = 1;
+  ELSE
+     SET new.rank = maxrank + 1;
+  END IF;
+END
+--
+-- delpm(plid, pid) deletes the plmember row matching the arguments, then
+-- adjusts the plmember.rank values to fill the gap.
+--
+CREATE PROCEDURE delpm(IN plidv int unsigned, IN pidv int unsigned)
+BEGIN
+  DECLARE rankv int unsigned;
+  DECLARE rowcount int unsigned;
+  SELECT rank INTO rankv
+    FROM plmember
+    WHERE plid = plidv AND pid = pidv;
+  DELETE FROM plmember
+    WHERE plid = plidv AND pid = pidv;
+ 
+  dog: LOOP
+     UPDATE plmember SET rank = rankv
+       WHERE plid = plidv AND rank = rankv+1;
+     SELECT ROW_COUNT() into rowcount;
+     IF rowcount = 0 THEN
+       LEAVE dog;
+     END IF;
+     SET rankv = rankv + 1;
+   END LOOP;
+   
+END
+

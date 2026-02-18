@@ -262,13 +262,18 @@ using that template may have.</p>
 
 <p id="plmember">Each row in the <code>plmember</code> table specifies a
   <code>pattern</code> and a <code>pattern_language</code>, specifying
-  that the referenced pattern language includes that pattern.</p>
+  that the referenced pattern language includes that pattern. The
+  <code>rank</code> column determines the ordering of the patterns in the
+  language.</p>
 
 <pre>
 CREATE TABLE plmember (
   pid int unsigned NOT NULL,
   plid int unsigned NOT NULL,
+  rank int unsigned NOT NULL,
   CONSTRAINT UNIQUE(plid, pid),
+  UNIQUE key doggy (plid, rank),
+  KEY pid (pid),
   FOREIGN KEY (pid) REFERENCES pattern(id),
   FOREIGN KEY (plid) REFERENCES pattern_language(id)
 );

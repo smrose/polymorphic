@@ -8,6 +8,7 @@
       dt {
 	  font-weight: bold;
 	  margin-left: 1em;
+	  font-family: fixed;
       }
       dd {
 	  margin-bottom: .3em;
@@ -25,7 +26,8 @@
       patterns using a "polymorphic" design, by which we mean a design
       in which different patterns needn't share a common set of
       features. It's an evolution of the Public Sphere Project
-      <em>Pattern Sphere</em>.</p>
+      <a href="https://labs.publicsphereproject.org/ps/">Pattern
+      Sphere</a>.</p>
 
      <p>See <a href="../README.html">Polymorphic Pattern
       Sphere Schema</a> for an overview of the schema and the
@@ -150,7 +152,8 @@ Readonly $destpw => 'FIXME';
 
 <ol>
 
- <li> Clone the repository to a directory under the document root of your web server.</li>
+ <li> Clone the repository to a directory under the document root of
+   your web server.</li>
 
  <li> Create <code>scripts/creds.pl</code> to allow perl scripts to access the databases.</li>
 
@@ -165,8 +168,9 @@ define('ROOTDIR', '/publicsphereproject/polymorphic');
 ?>
  </pre></li>
 
- <li>Create <code>local.css</code>. All this file does is change the background color of the
-   application to remind the developer of which host is being used.
+ <li>Create <code>local.css</code>. All this file does is change the
+   background color of the application to remind the developer of
+   which host is being used.
    <pre>
 body {
     background-color: #fee;
@@ -176,8 +180,8 @@ body {
 }
 </pre></li>
 
- <li> Edit the database password into <code>pps-schema.sql</code>. Be careful not to upload that
-  to github with the password in it.</li>
+ <li> Edit the database password into <code>pps-schema.sql</code>. Be
+  careful not to upload that to github with the password in it.</li>
 
  <li> Move into <code>scripts/</code> and run
   <code>revert</code>. As-written, this requires that suitable
