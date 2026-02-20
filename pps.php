@@ -10,6 +10,7 @@
  * FUNCTIONS
  *
  *  DataStoreConnect  open a database connection
+ *  Which             SQL query builder helper
  *  BeginTransaction  begin a database transaction
  *  CountPatterns     count of pattern using a template
  *  GetPatterns       fetch pattern records
@@ -113,6 +114,36 @@ function DataStoreConnect() {
 } /* end DataStoreConnect() */
 
 
+/* Which()
+ *
+ *  SQL query build helper.
+ */
+
+function Which($which) {
+  $q = '';
+  $u = [];
+  if(isset($which) && is_array($which) && count($which)) {
+    foreach($which as $column => $value) {
+      if(strlen($q))
+        $q .= ' AND ';
+      if(is_array($value)) {
+        foreach($value as $v) {
+          $u[] = $v;
+	  $x .= strlen($x) ? ',?' : '?';
+	}
+        $q .= "$column IN ($x)";
+      } else {
+	$q .= "$column = ?";
+	$u[] = $value;
+      }
+    }
+    $q = "WHERE $q";
+  }
+  return [$q, $u];
+  
+} /* end Which() */
+
+
 /* BeginTransaction()
  *
  *  Begin a database transaction.
@@ -170,18 +201,8 @@ function CountPatterns($ptid) {
 function GetPatterns($which = null) {
   global $pdo;
 
-  $q = '';
-  $u = [];
   $which['pf.name'] = 'title';
-  if(isset($which) && is_array($which) && count($which)) {
-    foreach($which as $column => $value) {
-      if(strlen($q))
-        $q .= ' AND ';
-      $q .= " $column = ?";
-      $u[] = $value;
-    }
-    $q = "WHERE $q";
-  }
+  [$q, $u] = Which($which);
 
   $query = "SELECT p.*, pt.name AS ptname, pfs.value AS title FROM pattern p
  JOIN pattern_template pt ON p.ptid = pt.id
@@ -498,7 +519,7 @@ function GetPVs($which = null) {
  *
  *  Return the selected pattern_template records with an added 'pcount'
  *  field - count of associated patterns - and 'fcount' - count of
- *  associated features.
+ *  associated features - keyed on id.
  *
  *  I don't know how to do this in a single query - do you?
  */
@@ -520,7 +541,8 @@ function GetTemplates($which = null) {
     $q = '';
     $u = [];
   }
-  $query = "SELECT *, 0 AS pcount, 0 AS fcount FROM pattern_template $q";
+  $query = "SELECT *, 0 AS pcount, 0 AS fcount
+ FROM pattern_template $q";
   try {
     $sth = $pdo->prepare($query);
     $rv = $sth->execute($u);
