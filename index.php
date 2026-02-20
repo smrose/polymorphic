@@ -1265,13 +1265,27 @@ function byfname($a, $b) {
 function ManagePatterns($plid) {
   $pl = GetPL($plid);
   $templates = GetTemplates();
-  usort($templates, 'bytitle');
   if(!isset($pl))
     Error("No pattern language with id $plid.");
+
+  # Get the patterns.
+
+  $patterns = GetPatterns();
 
   # Get the existing members.
   
   $plmembers = GetPLMembers($plid);
+
+  # Add the rank field to $patterns.
+
+  foreach($patterns as $pattern) {
+    $pid = $pattern['id'];
+    if(array_key_exists($pid, $plmembers))
+      $patterns[$pid]['rank'] = $plmembers[$pid]['rank'];
+    else
+      $patterns[$pid]['rank'] = null;
+  }
+  usort($patterns, 'bytitle');
 
   print "<style>
   .linklike {
@@ -1290,42 +1304,41 @@ form to add and remove patterns from this pattern language. Checkboxes
 are already checked for those patterns that are already members of
 this language. Patterns are grouped by pattern template.</p>
 
-<form method=\"POST\" action=\"{$_SERVER['SCRIPT_NAME']}\" id=\"faform\">
+<style>
+  #form4 {
+    display: grid;
+    border: 1px solid black;
+    grid-template-columns: repeat(4, auto);
+    width: max-content;
+    background-color: #ffd;
+    margin-left: 1em;
+  }
+  #form4 div {
+    padding: .2em;
+  }
+</style>
+
+<form method=\"POST\" action=\"{$_SERVER['SCRIPT_NAME']}\" id=\"form4\">
  <input type=\"hidden\" name=\"pl\" value=\"eatme\">
  <input type=\"hidden\" name=\"plid\" value=\"$plid\">
- <div class=\"fh\">Pattern title</div>
+ <div class=\"fh\">Pattern Title</div>
+ <div class=\"fh\">Pattern Template</div>
+ <div class=\"fh\">Rank</div>
  <div class=\"fh\">Membership</div>
 ";
 
-  # Loop on templates.
-
-  foreach($templates as $template) {
-  
-    # Get the patterns using this template. If none, skip, else sort by title.
-
-    $patterns = GetPatterns(['ptid' => $template['id']]);
-    if(!isset($patterns) || !count($patterns))
-      continue;
-    print " <div title=\"{$template['id']}\" class=\"fsub\" style=\"background-color: #eec\">{$template['name']}</div>\n";
-    usort($patterns, 'bytitle');
-
-    # Add an 'ismember' value to each pattern record.
-  
-    foreach($patterns as $k => $pattern)
-      $patterns[$k]['ismember'] = array_key_exists($pattern['id'], $plmembers);
-
-    # Loop on patterns in this template.
-    
-    foreach($patterns as $pattern) {
-      $checked = $pattern['ismember'] ? ' checked="checked"' : '';
-      print " <div class=\"antifa\">{$pattern['title']}</div>
+  foreach($patterns as $pattern) {
+    $checked = $pattern['rank'] ? ' checked="checked"' : '';
+    print "  <div class=\"antifa\">{$pattern['title']}</div>
+  <div class=\"antifa\">{$templates[$pattern['ptid']]['name']}</div>
+  <div class=\"antifa\">{$pattern['rank']}</div>
   <div class=\"centrist\">
    <input type=\"checkbox\" name=\"{$pattern['id']}\"$checked>
   </div>
 ";
-    }
-  }
-  print " <div class=\"fsub\">
+  } /* end loop on patterns */
+  
+  print " <div class=\"fsub3\">
  <input type=\"submit\" name=\"submit\" value=\"Accept\">
   <input type=\"submit\" name=\"submit\" value=\"Cancel\">
  </div>
