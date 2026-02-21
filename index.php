@@ -280,6 +280,21 @@ print "<form method=\"POST\" action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featur
 
 function PatternForm($action, $id) {
 
+  print "<style>
+    .ff3 {
+	display: grid;
+	grid-template-columns: repeat(3, auto);
+	border: 1px solid black;
+	width: max-content;
+	background-color: #ffd;
+	margin-left: 1em;
+    }
+    .ff3 div {
+        padding: .2em;
+    }
+</style>
+";
+
   if($action == 'edit') {
     $pattern = GetPattern($id);
     $features = $pattern['features'];
@@ -301,16 +316,17 @@ function PatternForm($action, $id) {
     $nvalue = '';
     $note = '<h2>Add a Pattern</h2>
 ';
-    Alert("Adding a pattern with template <code>{$template['name']}</code>");
+    Alert("Adding a pattern with template <code>{$template['name']}</code>\n");
     $submit = ' <input type="submit" name="submit" value="Accept" id="accept">
  <input type="submit" id="accepta" name="submit" value="' . ANOTHER . '">
 ';
   }
   print "$note\n";
-  Alert('Required features are displayed <span class="required">like this</span>. Check the checkbox at the right to remove a value.');
-  print "<form enctype=\"multipart/form-data\" action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"featureform\" method=\"POST\" id=\"patternform\">
+  Alert("Required features are displayed <span class=\"required\">like this</span>. Check the checkbox at the right to remove a value.\n");
+  print "<form enctype=\"multipart/form-data\" action=\"{$_SERVER['SCRIPT_NAME']}\" class=\"ff3\" method=\"POST\" id=\"patternform\">
  <div class=\"fh\">Feature name</div>
  <div class=\"fh\">Value</div>
+ <div class=\"fh\"></div>
 <input type=\"hidden\" name=\"pattern\" value=\"$action\">
 $context
 ";
@@ -350,9 +366,9 @@ $context
       if(isset($feature['value'])) {
         $value = " value=\"{$feature['value']}\"";
         if(!$feature['required'])
-          $remove = "<input type=\"checkbox\" name=\"d-{$feature['id']}\" tite=\"remove\">";
+          $remove = "<input type=\"checkbox\" name=\"d-{$feature['id']}\" title=\"remove\">";
       }
-      $input = "<input name=\"f-{$feature['id']}\" type=\"text\" size=\"80\"$value$iclass>$remove\n";
+      $input = "<input name=\"f-{$feature['id']}\" type=\"text\" size=\"80\"$value$iclass>";
 
     } elseif($feature['type'] == 'image') {
 
@@ -378,7 +394,8 @@ $context
          */
 
         $ipath = ImagePath($feature['hash']);
-        $ilink = "<span class=\"ilink\" id=\"l-{$feature['hash']}\" title=\"{$feature['filename']}\">&nbsp;preview&nbsp;</span><span class=\"rbox\"><input type=\"checkbox\" name=\"d-{$feature['name']}\">remove</span>";
+        $ilink = "<span class=\"ilink\" id=\"l-{$feature['hash']}\" title=\"{$feature['filename']}\">&nbsp;preview&nbsp;</span>";
+	$remove = "<input type=\"checkbox\" name=\"d-{$feature['id']}\" title=\"remove\">";
         $imgs .= "<div class=\"imagebox\" id=\"i-{$feature['hash']}\"><img src=\"$ipath\">
  <div id=\"imagemeta\">
   <div class=\"h\">File name:</div>
@@ -398,7 +415,7 @@ $context
         $value = '';
         $remove = '';
       }
-      $input = "<textarea name=\"f-{$feature['id']}\" rows=\"3\" cols=\"80\">$value</textarea>$remove\n";
+      $input = "<textarea name=\"f-{$feature['id']}\" rows=\"3\" cols=\"80\">$value</textarea>\n";
     } else {
       Error("Unrecognized feature type <code>{$feature['type']}</code>");
     }
@@ -406,10 +423,12 @@ $context
 
     print " <div class=\"$lclass\">{$feature['name']}:</div>
  <div>{$input}{$ilink}</div>
+ <div>$remove</div>
 ";
     if($feature['type'] == 'image')
       print " <div class=\"fname required\" style=\"font-size: 80%\">Alternate text:</div>
  <div>$input2</div>
+ <div></div>
 ";
 
   } // end loop on features
@@ -419,7 +438,7 @@ $context
 <div>
  <input type=\"text\" name=\"notes\" size=\"60\" value=\"$nvalue\">
 </div>
-<div class=\"fsub\">
+<div class=\"fsub3\">
 $submit
  <input type=\"submit\" name=\"submit\" value=\"Cancel\">
 </div>
@@ -753,6 +772,7 @@ function SelectPattern($template_id = null) {
     # template has been selected, offer a menu of patterns using it
     
     $patterns = GetPatterns(['ptid' => $template_id]);
+    $template = GetTemplate($template_id);
     if(!count($patterns))
       Error('No patterns found for this tempate');
     $selpattern = '<select name="pattern_id" id="pattern_id">
@@ -765,9 +785,10 @@ function SelectPattern($template_id = null) {
     }
     $selpattern .= '</select>
 ';
-    print "<h2>Select a Pattern</h2>
+    print "<h2>Select a Pattern</h2>\n";
 
-<form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\" id=\"selpat\">
+    Alert("Select a pattern using template <code>{$template['name']}</code>.\n");
+print "<form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\" id=\"selpat\">
 <input type=\"hidden\" name=\"pattern\" value=\"edit\">
 
 <div class=\"fname\">Select a pattern:</div>
