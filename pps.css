@@ -60,7 +60,6 @@ div.booty {
     grid-template-columns: auto auto;
     border: 1px solid black;
     width: max-content;
-    padding: .4em;
     background-color: #ffd;
     margin-left: 1em;
 }
@@ -81,7 +80,7 @@ div.booty {
     margin-left: 1em;
 }
 .fh {
-    color: #ccc;
+    color: #ddd;
     background-color: black;
     text-align: center;
     font-weight: bold;
@@ -101,7 +100,7 @@ div.booty {
     padding: .2em;
 }
 .featureform div {
-    padding: .1em;
+    padding: .2em;
 }
 .fname {
     text-align: right;
@@ -178,13 +177,6 @@ input[type=submit]:disabled {
     font-weight: bold;
 }
 .ilink:hover {
-    background-color: #fcc;
-}
-.rbox {
-    font-family: monospace;
-    font-weight: bold;
-}
-.rbox:hover {
     background-color: #fcc;
 }
 .imagebox {
