@@ -1293,7 +1293,7 @@ function DeleteFeatureValue($fvalue) {
   global $pdo;
   
   $name = $fvalue['name'];
-  $tablename = "pf_$type";
+  $tablename = "pf_{$fvalue['type']}";
 
   try {
     $sth = $pdo->prepare("DELETE FROM $tablename WHERE pid = ? AND pfid = ?");
@@ -1617,17 +1617,28 @@ function IsImageUsed($hash) {
 
   # Get the feature names that are of type "image."
 
-  $sth = $pdo->prepare('SELECT name FROM pattern_feature WHERE type = "image"');
-  $sth->execute();
+  try {
+    $sth = $pdo->prepare('SELECT name
+ FROM pattern_feature
+ WHERE type = "image"');
+    $sth->execute();
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
+  }
   $names = $sth->fetchall();
 
   # Search those tables for any reference to this image.
 
   foreach ($names as $name) {
-    $tblname = "pf_{$name['name']}";
-    $query = "SELECT count(*) AS count FROM $tblname WHERE hash = ?";
-    $sth = $pdo->prepare($query);
-    $sth->execute([$hash]);
+    $query = "SELECT count(*) AS count FROM pf_image WHERE hash = ?";
+    try {
+      $sth = $pdo->prepare($query);
+      $sth->execute([$hash]);
+    } catch(PDOException $e) {
+      echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+      exit();
+    }
     $count = $sth->fetchcolumn();
     if($count)
       return true;
