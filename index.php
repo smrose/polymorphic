@@ -1319,13 +1319,14 @@ function ManagePatterns($plid) {
 </style>
 
 <h2>Managing Patterns for Pattern Language <code>{$pl['name']}</code></h2>
+";
 
-<p>A <em>pattern language</em> is a named set of patterns. Use this
+  Alert("A <em>pattern language</em> is a named set of patterns. Use this
 form to add and remove patterns from this pattern language. Checkboxes
 are already checked for those patterns that are already members of
-this language. Patterns are grouped by pattern template.</p>
+this language.\n");
 
-<style>
+print "<style>
   #form4 {
     display: grid;
     border: 1px solid black;
@@ -1337,23 +1338,32 @@ this language. Patterns are grouped by pattern template.</p>
   #form4 div {
     padding: .2em;
   }
+  .sortable {
+    text-decoration: underline;
+  }
+  .sortable:hover {
+    cursor: pointer;
+    background-color: #333;
+    color: white;
+  }
 </style>
 
 <form method=\"POST\" action=\"{$_SERVER['SCRIPT_NAME']}\" id=\"form4\">
  <input type=\"hidden\" name=\"pl\" value=\"eatme\">
  <input type=\"hidden\" name=\"plid\" value=\"$plid\">
- <div class=\"fh\">Pattern Title</div>
- <div class=\"fh\">Pattern Template</div>
- <div class=\"fh\">Rank</div>
- <div class=\"fh\">Membership</div>
+ <div class=\"fh sortable\" id=\"htitle\">Pattern Title</div>
+ <div class=\"fh sortable\" id=\"htemplate\">Pattern Template</div>
+ <div class=\"fh sortable\" id=\"hrank\">Rank</div>
+ <div class=\"fh\" id=\"hmembership\">Membership</div>
 ";
 
   foreach($patterns as $pattern) {
+    $data = " data-pid=\"{$pattern['id']}\"";
     $checked = $pattern['rank'] ? ' checked="checked"' : '';
-    print "  <div class=\"antifa\">{$pattern['title']}</div>
-  <div class=\"antifa\">{$templates[$pattern['ptid']]['name']}</div>
-  <div class=\"antifa\">{$pattern['rank']}</div>
-  <div class=\"centrist\">
+    print "  <div class=\"antifa\"$data>{$pattern['title']}</div>
+  <div class=\"antifa\"$data>{$templates[$pattern['ptid']]['name']}</div>
+  <div class=\"antifa centrist\"$data>{$pattern['rank']}</div>
+  <div class=\"centrist\"$data>
    <input type=\"checkbox\" name=\"{$pattern['id']}\"$checked>
   </div>
 ";
@@ -1364,6 +1374,91 @@ this language. Patterns are grouped by pattern template.</p>
   <input type=\"submit\" name=\"submit\" value=\"Cancel\">
  </div>
 </form>
+
+<script>
+  const TITLE = 0
+  const TNAME = 1
+  const RANK = 2
+
+  function sbyrank(a, b) {
+    ranka = a[RANK].innerHTML
+    rankb = b[RANK].innerHTML
+    return ranka - rankb
+  }
+
+  function sbytitle(a, b) {
+    titlea = a[TITLE].innerHTML.toLowerCase()
+    titleb = b[TITLE].innerHTML.toLowerCase()
+    if(titlea < titleb) return -1
+    if(titlea > titleb) return 1
+    return 0
+  }
+
+  function sbytname(a, b) {
+    ta = a[TNAME].innerHTML.toLowerCase()
+    tb = b[TNAME].innerHTML.toLowerCase()
+    if(ta == tb)
+      return sbytitle(a, b)
+    if(ta < tb) return -1
+    if(ta > tb) return 1
+    return 0
+  }
+
+  function bytitle() {
+    nodes.sort(sbytitle)
+    reorder()
+  }
+
+  function byrank() {
+    nodes.sort(sbyrank)
+    reorder()
+  }
+
+  function bytemplate() {
+    nodes.sort(sbytname)
+    reorder()
+  }
+
+
+  /* reorder()
+   *
+   *  Given a sorted array of quartets of nodes, rewrite the table, sorted.
+   */
+     
+  function reorder() {
+    for(node of nodes)
+      if(typeof node != 'undefined') {
+	table.appendChild(node[0])
+	table.appendChild(node[1])
+	table.appendChild(node[2])
+	table.appendChild(node[3])
+      }
+    table.appendChild(sub)
+    return true
+  } // end reorder()
+
+  /* collect all the nodes with feature values, grouped by pattern.id */
+
+  table = document.querySelector('#form4')
+  nodes = []
+  for(node of table.childNodes) {
+    if(node.nodeType == 1) {
+      if(typeof node.dataset['pid'] == 'undefined')
+        continue
+      pid = node.dataset['pid']
+      if(typeof nodes[pid] == 'undefined')
+        nodes[pid] = []
+      nodes[pid].push(node)
+    }
+  }
+  sub = document.querySelector('.fsub3')
+
+  /* set 'click' event handlers on all the headings */
+
+  document.querySelector('#htemplate').addEventListener('click', bytemplate)
+  document.querySelector('#hrank').addEventListener('click', byrank)
+  document.querySelector('#htitle').addEventListener('click', bytitle)
+</script>
 ";
 
 } /* end ManagePatterns() */
