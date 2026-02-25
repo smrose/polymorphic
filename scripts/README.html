@@ -94,8 +94,8 @@ Readonly $sourcedb => 'ps';
 Readonly $destdb => 'pps';
 Readonly $sourceuser => 'root';
 Readonly $destuser => 'pps';
-Readonly $sourcepw => 'FIXME';
-Readonly $destpw => 'FIXME';
+Readonly $sourcepw => '&lt;FIXME&gt;';
+Readonly $destpw => '&lt;FIXME&gt;';
 </pre></dd>
 
       <dt>thematic.pl</dt>
@@ -129,8 +129,14 @@ Readonly $destpw => 'FIXME';
       <dd>Our scheme for storing graphic images involves naming them with the
        value of their SHA1 hash. This script manages that.</dd>
 
-      <dd>The tree used for storing images must be writable as the web
-      server user.</dd>
+      <dd>The tree used for storing images must exist and be writable as the web
+	server user. For Fedora Linux:
+<pre>
+  % cd /var/www/html/publicsphereproject/polymorphic/
+  % mkdir images
+  % sudo chown apache:apache images
+</pre>	  
+</dd>
 
       <dt>revert</dt>
 
@@ -163,7 +169,7 @@ Readonly $destpw => 'FIXME';
 &lt;?php
 const DSN = 'mysql:host=localhost;dbname=pps';
 const USER = 'pps';
-const PW = '<FIX-ME>';
+const PW = '&lt;FIX-ME&gt;';
 define('ROOTDIR', '/publicsphereproject/polymorphic');
 ?>
  </pre></li>
