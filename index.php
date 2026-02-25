@@ -1324,7 +1324,7 @@ function ManagePatterns($plid) {
   Alert("A <em>pattern language</em> is a named set of patterns. Use this
 form to add and remove patterns from this pattern language. Checkboxes
 are already checked for those patterns that are already members of
-this language.\n");
+this language. Click on a column heading to sort by that column.\n");
 
 print "<style>
   #form4 {
@@ -1346,15 +1346,23 @@ print "<style>
     background-color: #333;
     color: white;
   }
+  .fstick {
+    color: #ddd;
+    background-color: black;
+    text-align: center;
+    font-weight: bold;
+    position: sticky;
+    top: 0px;
+  }
 </style>
 
 <form method=\"POST\" action=\"{$_SERVER['SCRIPT_NAME']}\" id=\"form4\">
  <input type=\"hidden\" name=\"pl\" value=\"eatme\">
  <input type=\"hidden\" name=\"plid\" value=\"$plid\">
- <div class=\"fh sortable\" id=\"htitle\">Pattern Title</div>
- <div class=\"fh sortable\" id=\"htemplate\">Pattern Template</div>
- <div class=\"fh sortable\" id=\"hrank\">Rank</div>
- <div class=\"fh\" id=\"hmembership\">Membership</div>
+ <div class=\"fstick sortable\" id=\"htitle\">Pattern Title</div>
+ <div class=\"fstick sortable\" id=\"htemplate\">Pattern Template</div>
+ <div class=\"fstick sortable\" id=\"hrank\">Rank</div>
+ <div class=\"fstick\" id=\"hmembership\">Membership</div>
 ";
 
   foreach($patterns as $pattern) {
@@ -1369,7 +1377,7 @@ print "<style>
 ";
   } /* end loop on patterns */
   
-  print " <div class=\"fsub3\">
+  print " <div class=\"fsub4\">
  <input type=\"submit\" name=\"submit\" value=\"Accept\">
   <input type=\"submit\" name=\"submit\" value=\"Cancel\">
  </div>
