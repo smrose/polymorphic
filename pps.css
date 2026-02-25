@@ -116,10 +116,18 @@ div.booty {
     font-weight: bold;
     grid-column: span 3;
 }
+.fsub3 input[type=submit]:hover {
+    background-color: #666;
+}
 .fsub4 {
     text-align: center;
     font-weight: bold;
     grid-column: span 4;
+    background-color: #ffe;
+    border-top: 1px dotted black;
+}
+.fsub4 input[type=submit]:hover {
+    background-color: #666;
 }
 #seltemplate {
     display: grid;
