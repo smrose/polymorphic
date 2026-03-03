@@ -1512,6 +1512,15 @@ function Error($msg) {
 } /* end Error() */
 
 
+/* Printing the Pattern
+ *
+ * Print the pattern
+ */
+
+function PrintPattern($pid, $notes) {
+  global $pdo;
+  print "";
+}
 /* Alert()
  *
  *  Bold informative message, print() by default.
