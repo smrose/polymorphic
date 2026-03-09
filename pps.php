@@ -59,6 +59,13 @@
  *  IsImageUsed       true if an image is referenced in a feature value
  *  DeleteImage       delete the file specified by its hash
  *  ImagePath         return the file system path to an uploaded file
+ *  GetAuthors        return the authors table
+ *  UpdateAuthor
+ *  InsertAuthor
+ *  DeleteAuthor
+ *  GetPatternAuthors
+ *  InsertPatternAuthor
+ *  DeletePatternAuthor
  */
  
 require 'db.php';
@@ -380,6 +387,8 @@ function UpdatePL($update) {
   global $pdo;
   
   $pl = GetPL($update['id']);
+  if(is_null($pl))
+    Error('Pattern language not found.');
   $q = '';
   $u = [];
   foreach($update as $k => $v) {
@@ -1076,7 +1085,7 @@ function InsertPV($params) {
   $params['name'] = trim($params['name']);
   if(!strlen($params['name']))
     Error('Name of view may not be empty.');
-  $pvs = GetPVs(['pt.name' => $params['name']]);
+  $pvs = GetPVs(['pv.name' => $params['name']]);
   if(count($pvs))
     Error("There is already a pattern view with name \"{$params['name']}\" and there cannot be two.");
   $sql = 'INSERT INTO pattern_view(name, notes, layout, ptid)
@@ -1680,3 +1689,169 @@ function ImagePath($hash) {
   return $spath;
   
 } /* end ImagePath() */
+
+
+/* GetAuthors()
+ *
+ *  Get the (possibly-filtered) contents of the 'author' table along with the count
+ *  of associated pattern_author records.
+ */
+
+function GetAuthors($which = null) {
+  global $pdo;
+  
+  if(isset($which))
+    [$q, $u] = Which($which);
+  else
+    [$q, $u] = ['', []];
+  $query = "SELECT a.*, count(pattern_id) AS count
+ FROM author a
+  LEFT JOIN pattern_author pa ON a.id = pa.author_id
+ $q
+ GROUP BY a.id
+ ORDER BY name, affiliation";
+  $sth = $pdo->prepare($query);
+  $sth->execute($u);
+  return $sth->fetchall();
+  
+} /* end GetAuthors() */
+
+
+/* UpdateAuthor()
+ *
+ *  Update an author record.
+ */
+
+function UpdateAuthor($update) {
+  global $pdo;
+
+  $author = GetAuthors(['id' => $update['id']]);
+  if(!count($author))
+    Error('Author not found');
+  $author = $author[0];
+  $q = '';
+  $u = [];
+  foreach($update as $k => $v) {
+    if($k == 'id' || $author[$k] == $v)
+      continue;
+    if(strlen($q))
+      $q .= ', ';
+    $q .= "$k = :$k";
+    $u[$k] = $v;
+  }
+  if(count($u)) {
+    $u['id'] = $update['id'];
+    $query = "UPDATE author SET $q WHERE id = :id";
+    $sth = $pdo->prepare($query);
+    $sth->execute($u);
+    return $update;
+  }
+  return false;
+
+} /* end UpdateAuthor() */
+
+
+/* InsertAuthor()
+ *
+ *  Insert an author record.
+ */
+
+function InsertAuthor($name, $affiliation) {
+  global $pdo;
+
+  $query = 'INSERT INTO author (name, affiliation) VALUES(?, ?)';
+  try {
+    $sth = $pdo->prepare($query);
+    $sth->execute([$name, $affiliation]);
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
+  }
+  $author = GetAuthors(['id' => $pdo->lastInsertId()]);
+  return $author[0];
+  
+} /* end InsertAuthor() */
+
+
+/* DeleteAuthor()
+ *
+ *  Delete an author record.
+ */
+
+function DeleteAuthor($id) {
+  global $pdo;
+
+  try {
+    $sth = $pdo->prepare('DELETE FROM author WHERE id = ?');
+    $sth->execute([$id]);
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
+  }
+  return $sth->rowCount();
+  
+} /* end DeleteAuthor() */
+
+
+/* GetPatternAuthors()
+ *
+ *  Fetch pattern_author rows as an array keyed on pattern_id with values of arrays
+ *  of records keyed on author_id with pattern_id and author_id values.
+ */
+
+function GetPatternAuthors($which = null) {
+  global $pdo;
+  
+  if(isset($which))
+    [$q, $u] = Which($which);
+  else {
+    $q = '';
+    $u = [];
+  }
+  $query = "SELECT * FROM pattern_author $q";
+  try {
+    $sth = $pdo->prepare($query);
+    $rv = $sth->execute($u);
+  } catch(PDOException $e) {
+    echo __FILE__, ':', __LINE__, ' ', $e->getMessage(), ' ', (int) $e->getCode();
+    exit();
+  }
+  $pas = $sth->fetchall();
+
+  $pattern_authors = [];
+  foreach($pas as $pa)
+    $pattern_authors[$pa['pattern_id']][$pa['author_id']] = $pa;
+
+  return $pattern_authors;
+
+} /* end GetPatternAuthors() */
+
+
+/* InsertPatternAuthor()
+ *
+ *  Insert a pattern author.
+ */
+
+function InsertPatternAuthor($pid, $aid) {
+  global $pdo;
+
+  $q = 'INSERT INTO pattern_author (pid, aid) VALUES (?, ?)';
+  $sth = $pdo->prepare($q);
+  return $sth->execute([$pid, $aid]);
+
+} /* end InsertPatternAuthor() */
+
+
+/* DeletePatternAuthor()
+ *
+ *  Delete a pattern author.
+ */
+
+function DeletePatternAuthor($pid, $aid) {
+  global $pdo;
+
+  $q = "DELETE FROM pattern_author WHERE pid = ? AND $aid = ?";
+  $sth = $pdo->prepare($q);
+  return $sth->execute([$pid, $aid]);
+
+} /* end DeletePatternAuthor() */
