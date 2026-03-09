@@ -14,7 +14,8 @@ CREATE DATABASE IF NOT EXISTS pps
  CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci;
 use pps;
 GRANT ALL PRIVILEGES ON pps.* TO 'pps'@'localhost'
- IDENTIFIED BY '<FIX-ME>';
+ IDENTIFIED BY 'Pa++3rn 5ph3r3';
+
 FLUSH PRIVILEGES;
 --
 -- create pattern_template
@@ -172,6 +173,27 @@ CREATE TABLE IF NOT EXISTS pf_image (
   CONSTRAINT FOREIGN KEY (pid) REFERENCES pattern(id),
   CONSTRAINT FOREIGN KEY (pfid) REFERENCES pattern_feature(id),
   CONSTRAINT CHECK (length(alttext) > 0)
+);
+--
+-- 'author'
+--
+CREATE TABLE IF NOT EXISTS author (
+  id int unsigned NOT NULL AUTO_INCREMENT COMMENT 'unique id',
+  name varchar(255) NOT NULL COMMENT 'author name',
+  affiliation varchar(255) DEFAULT NULL COMMENT 'author affiliation',
+  PRIMARY KEY (id)
+);
+--
+-- pattern_author
+--
+CREATE TABLE pattern_author (
+  pattern_id int(10) unsigned NOT NULL COMMENT 'pattern.id value',
+  author_id int(10) unsigned NOT NULL COMMENT 'author.id value',
+  KEY pattern_id (pattern_id),
+  KEY author_id (author_id),
+  CONSTRAINT FOREIGN KEY (pattern_id) REFERENCES pattern (id) ON DELETE CASCADE,
+  CONSTRAINT FOREIGN KEY (author_id) REFERENCES author (id) ON DELETE CASCADE,
+  CONSTRAINT UNIQUE (pattern_id, author_id)
 );
 --
 -- 'rankit' sets plmember.rank to 1 higher than the max on INSERT
