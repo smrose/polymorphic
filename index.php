@@ -296,6 +296,9 @@ function PatternForm($action, $id) {
 ";
 
   if($action == 'edit') {
+
+    // editing an existing pattern
+    
     $pattern = GetPattern($id);
     $features = $pattern['features'];
     $action = 'absorb_edit';
@@ -307,7 +310,17 @@ function PatternForm($action, $id) {
     $submit = ' <input type="submit" name="submit" value="Accept" id="accept">
  <input type="submit" name="submit" value="Delete">
 ';
+    $pas = GetPatternAuthors(['pattern_id' => $id]);
+    $pas = $pas[$id];
+    if(count($pas))
+      foreach($pas as $pa)
+        $pattern_authors[$pa['author_id']] = $pa;
+    else
+        $pattern_authors = [];
   } else {
+
+    // adding a new pattern
+    
     $title = 'Adding Pattern';
     $template = GetTemplate($id);
     $features = $template['features'];
@@ -320,6 +333,7 @@ function PatternForm($action, $id) {
     $submit = ' <input type="submit" name="submit" value="Accept" id="accept">
  <input type="submit" id="accepta" name="submit" value="' . ANOTHER . '">
 ';
+    $pattern_authors = [];
   }
   print "$note\n";
   Alert("Required features are displayed <span class=\"required\">like this</span>. Check the checkbox at the right to remove a value.\n");
@@ -432,12 +446,26 @@ $context
 ";
 
   } // end loop on features
-  
-  print "<div class=\"fname\">
- Notes:</div>
-<div>
- <input type=\"text\" name=\"notes\" size=\"60\" value=\"$nvalue\">
-</div>
+
+  // authorship
+
+  $authors = GetAuthors();
+  $paoptions = [];
+  foreach($authors as $author) {
+    $selected = (count($pattern_authors) && isset($pattern_authors[$author['id']]))
+     ? ' selected' : '';
+    $aname = $author['name'];
+    if(!is_null($author['affiliation']))
+      $aname .= " ({$author['affiliation']})";
+    $paoptions[] = " <option value=\"{$author['id']}\"$selected>$aname</option>";
+  }
+  $aselect = "<select name=\"authors\" multiple>\n" .
+    implode("\n", $paoptions) . "\n</select>\n";
+  print "<div class=\"fname\">Notes:</div>
+<div><input type=\"text\" name=\"notes\" size=\"60\" value=\"$nvalue\"></div>
+<div></div>
+<div class=\"fname\">Authors:</div>
+<div>$aselect</div><div></div>
 <div class=\"fsub3\">
 $submit
  <input type=\"submit\" name=\"submit\" value=\"Cancel\">
@@ -1275,6 +1303,14 @@ function byfname($a, $b) {
   return $a['fname'] <=> $b['fname'];
 } /* end byfname() */
 
+function abyname($a, $b) {
+  if($a['name'] == $b['name'])
+    return $a['affiliation'] <=> $b['affiliation'];
+  return $a['name'] <=> $b['name'];
+  
+} /* end abyname() */
+
+
 
 /* ManagePatterns()
  *
@@ -1459,7 +1495,7 @@ print "<style>
       nodes[pid].push(node)
     }
   }
-  sub = document.querySelector('.fsub3')
+  sub = document.querySelector('.fsub4')
 
   /* set 'click' event handlers on all the headings */
 
@@ -1541,15 +1577,48 @@ function RemoveFeatures($template_id, $features) {
 
 /* AbsorbPatternUpdate()
  *
- *  Implement pattern update, including associated feature values. Return
- *  true if we took any actions.
+ *  Implement pattern update, including associated feature and pattern author
+ *  values. Return true if we took any actions.
  */
 
 function AbsorbPatternUpdate() {
 
-  BeginTransaction();
-
   $pattern_id = $_REQUEST['id'];
+
+  // 'pattern_author' records may need insertion or deletion
+  
+  $pattern_authors = [
+    'insert' => [],
+    'delete' => []
+  ];
+
+  // get known authors in an array keyed on author_id
+
+  $opas = GetPatternAuthors(['pattern_id' => $pattern_id]);
+  $opas = $opas[$pattern_id];
+
+  // get specified authors in an array keyed on author_id
+  
+  $authors[] = $_REQUEST['authors'];
+  $npas = [];
+  foreach($authors as $author)
+    $npas[] = [
+      'author_id' => $author,
+      'pattern_id' => $pattern_id
+    ];
+
+  // seek stale - extant records not in the form
+  
+  foreach($opas as $author_id => $opa)
+    if(!array_key_exists($author_id, $npas))
+      $pattern_authors['delete'][] = $opa;
+  
+  // seen new - authors in the form but not in the db
+
+  foreach($npas as $author_id => $npa)
+    if(!array_key_exists($author_id, $opas))
+      $pattern_authors['insert'][] = $npa;
+
   $pattern = GetPattern($pattern_id);
   $features = $pattern['features'];
   $fbyi = [];
@@ -1650,6 +1719,10 @@ function AbsorbPatternUpdate() {
     if(array_key_exists("d-{$feature['id']}", $_REQUEST))
       $delete[] = $feature;
 
+  # we are ready to implement updates
+
+  BeginTransaction();
+
   # perform the pattern feature changes.
   
   UpdatePatternFeatures($pattern_id, $update, $insert, $delete);
@@ -1662,6 +1735,17 @@ function AbsorbPatternUpdate() {
     UpdatePattern($pattern_id, $_REQUEST['notes']);
     $did = true;
   }
+
+  # pattern_author updates and deletions
+
+  if(count($pattern_authors['insert']))
+    foreach($pattern_authors['insert'] as $pa)
+      InsertPatternAuthor($pattern_id, $pa['author_id']);
+
+  if(count($pattern_authors['delete']))
+    foreach($pattern_authors['insert'] as $pa)
+      DeletePatternAuthor($pattern_id, $pa['author_id']);
+
   CommitTransaction();
   return $did;
   
@@ -2406,6 +2490,113 @@ exist, per template.</p>
 } /* end Status() */
 
 
+/* Authors()
+ *
+ *  Manage the author registry. That means:
+ *
+ *   1. Editing metadata fields 'name' and 'affiliation'.
+ *   2. Entering new authors.
+ *   3. Offering deletion of authors lacking associated pattern_author records.
+ */
+
+function Authors() {
+  if($_REQUEST['authors'] == 'manage') {
+    $authors = GetAuthors();
+    $aoptions = [];
+    foreach($authors as $author) {
+      $aname = $author['name'];
+      if(!is_null($author['affiliation']))
+        $aname .= " ({$author['affiliation']})";
+      $aoptions[] = "<option value=\"{$author['id']}\">$aname</option>";
+    }
+    $aselect = "<select name=\"author\">
+ <option value=\"0\"></option>
+ " . implode("\n ", $aoptions) . "\n</select>\n";
+    print "<h2>Manage Authors</h2>
+
+<h3>Edit an author</h3>
+
+<form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" id=\"authorform\" class=\"featureform\">
+ <div class=\"fname\">Select an author:</div>
+ <div>$aselect</div>
+ <div class=\"fsub\">
+  <input type=\"submit\" name=\"submit\" value=\"Select\">
+  <input type=\"submit\" name=\"submit\" value=\"Cancel\">
+</div>
+</form>
+";
+  }
+  AuthorForm();
+  
+} /* end Authors() */
+
+
+/* AuthorForm()
+ *
+ *  Present a form for adding, editing, or deleting an author.
+ */
+
+function AuthorForm($id = null) {
+
+  if(isset($id)) {
+
+    // editing an existing author record
+
+    $author = GetAuthors(['id' => $id]);
+    $author = $author[0];
+    $hidden = "<input type=\"hidden\" name=\"author\" value=\"$id\">\n";
+    if(!$author['count'])
+      $delete = "<input type=\"submit\" name=\"submit\" value=\"Delete\">\n";
+    $alabel = 'Edit author';
+    $namevalue = " value=\"{$author['name']}\"";
+    $affvalue = " value=\"{$author['affiliation']}\"";
+  } else {
+    $alabel = 'Add an author';
+    $hidden = "<input type=\"hidden\" name=\"author\" value=\"0\">\n";
+    $delete = '';
+    $namevalue = $affvalue = '';
+  }
+
+  print "<h3>$alabel</h3>
+
+<form action=\"{$_SERVER['SCRIPT_NAME']}\" method=\"POST\" class=\"featureform\">
+$hidden
+
+ <div class=\"fname\">Author name:</div>
+ <div><input type=\"text\" name=\"name\"$namevalue></div>
+
+ <div class=\"fname\">Author affiliation:</div>
+ <div><input type=\"text\" name=\"affiliation\"$affvalue></div>
+
+ <div class=\"fsub\">
+  <input type=\"submit\" name=\"submit\" value=\"Accept\" id=\"accept\">
+  $delete
+  <input type=\"submit\" name=\"submit\" value=\"Cancel\">
+ </div>
+</form>
+";
+
+} /* end AuthorForm() */
+
+
+/* AbsorbAuthor()
+ *
+ *  Absorb author edit.
+ */
+
+function AbsorbAuthor() {
+  if(UpdateAuthor($update = [
+       'id' => $_REQUEST['author'],
+       'affiliation' => $_REQUEST['affiliation'],
+       'name' => $_REQUEST['name']
+      ]))
+    Alert('Updated.');
+  else
+    Alert('No update');
+  
+} /* end AbsorbAuthor() */
+
+
 if(isset($_REQUEST['dlpvl'])) {
   $pvid = $_REQUEST['dlpvl'];
 
@@ -2468,9 +2659,38 @@ if(DEBUG && count($_FILES)) {
 
 if(isset($_REQUEST['submit']) && $_REQUEST['submit'] == 'Cancel') {
   true;
+} elseif(isset($_REQUEST['authors'])) {
+
+  // Manage authors.
+  
+  Authors();
+  $SuppressMain = true;
+  
+} elseif(isset($_REQUEST['author'])) {
+
+  if($_REQUEST['author'] == 0) {
+
+    // add this author
+
+    InsertAuthor($_REQUEST['name'], $_REQUEST['affiliation']);
+
+  } else {
+  
+    // edit this author
+  
+    if($_REQUEST['submit'] == 'Accept')
+      AbsorbAuthor();
+    elseif($_REQUEST['submit'] == 'Delete')
+      DeleteAuthor($_REQUEST['author']);
+    else {
+      AuthorForm($_REQUEST['author']);
+      $SuppressMain = true;
+    }
+  }
+
 } elseif(isset($_REQUEST['summary'])) {
 
-  # Display a summmry of data.
+  # Display a summmary of data.
 
   Status();
   $SuppressMain = true;
@@ -2905,6 +3125,11 @@ if(!$SuppressMain) {
 <ul>
  <li><a href="?pv=add">Create a pattern view</a></li>
  <li><a href="?pv=edit">Edit a pattern view</a></li>
+</ul>
+
+<h2>Authors</h2>
+<ul>
+ <li><a href="?authors=manage">Manage authors</a></li>
 </ul>
 
 <h2>Documentation</h2>
